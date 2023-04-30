@@ -8,6 +8,7 @@ pub enum Value {
     Void,
     Bool(bool),
     Int(Int),
+    Float(f64),
     String(GcString),
 }
 

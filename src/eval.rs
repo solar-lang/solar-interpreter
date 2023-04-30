@@ -21,7 +21,11 @@ impl<'a> Context<'a> {
         self.sources.get(path)
     }
 
-    pub fn eval_function(&self, func: &ast::Function<'a>, args: &[Value]) -> Value {
+    pub fn eval_function(
+        &self,
+        func: &ast::Function<'a>,
+        args: &[Value],
+    ) -> Result<Value, EvalError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
@@ -32,13 +36,13 @@ impl<'a> Context<'a> {
         self.eval(&func.body, &mut scope)
     }
 
-    pub fn eval(&self, expr: &FullExpression, scope: &mut Scope) -> Value {
+    pub fn eval(&self, expr: &FullExpression, mut scope: &mut Scope) -> Result<Value, EvalError> {
         match expr {
             FullExpression::Let(expr) => {
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
-                    let value = self.eval(value, scope);
+                    let value = self.eval(value, scope)?;
                     scope.push(ident.value, value)
                 }
 
@@ -56,11 +60,11 @@ impl<'a> Context<'a> {
 
             FullExpression::Expression(ref expr) => match expr as &ast::expr::Expression {
                 ast::expr::Expression::FunctionCall(fc) => {
-                    let mut args: Vec<Value> = fc
-                        .args
-                        .iter()
-                        .map(|arg| self.eval_sub_expr(&arg.value, &mut scope))
-                        .collect();
+                    let mut args: Vec<Value> = Vec::with_capacity(fc.args.len());
+                    for arg in fc.args.iter() {
+                        let v = self.eval_sub_expr(&arg.value, &mut scope)?;
+                        args.push(v);
+                    }
 
                     // Find function name in scope
                     // TODO first check if Type::path contains function name
@@ -91,8 +95,8 @@ impl<'a> Context<'a> {
     fn eval_sub_expr(
         &self,
         expr: &ast::expr::Value,
-        scope: &mut Scope,
-    ) -> Result<Value, ErrorType> {
+        _scope: &mut Scope,
+    ) -> Result<Value, EvalError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
         match expr {
@@ -113,7 +117,12 @@ impl<'a> Context<'a> {
 
                     Ok(Value::Int(i.unwrap()))
                 }
+                Literal::Float(f) => {
+                    let f = f.parse::<f64>().expect("float to be in valid f64 form");
+                    Ok(Value::Float(f))
+                }
             },
+            _ => panic!("evaluation not ready"),
         }
     }
 }
