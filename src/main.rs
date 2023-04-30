@@ -1,6 +1,11 @@
 mod value;
+use std::collections::HashMap;
+use value::Value;
 
-use solar_parser::{ast, Ast};
+use solar_parser::{
+    ast::{self, expr::FullExpression},
+    Ast,
+};
 
 fn main() {
     use solar_parser::Parse;
@@ -19,7 +24,75 @@ fn main() {
         ast
     };
 
+    // Find main function
     let f_main = find(&ast, "main");
+
+    let ctx = Context {
+        stdout: Box::new(std::io::stdout()),
+        global_scope: HashMap::new(),
+    };
+}
+
+struct Context {
+    stdout: Box<dyn std::io::Write>,
+    global_scope: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone)]
+/// Logical Scope, optimized for small number of entries.
+/// Made so pushing and popping works fine.
+pub struct Scope {
+    values: Vec<(String, Value)>
+}
+
+impl Scope {
+    pub fn get(&self ,name: &str) -> Option<&Value> {
+        self.values.iter().rfind(|(n, _)| n == name)
+            .map(|(_, v)| v)
+    }
+
+    pub fn push(&mut self ,name: &str, value: Value) {
+        self.values.push((name.to_string(), value));
+    }
+
+    /// Pops the most recent value out of the scope.
+    /// Popping of an empty scope is considered a programming error
+    /// and results in a panic.
+    pub fn pop(&mut self ,name: &str) -> Value {
+        self.values.pop().expect("find value in local scope").1
+    }
+
+    pub fn assert_empty(&self) {
+        if self.values.is_empty() {
+            return;
+        }
+
+        panic!("Scope is supposed to be empty");
+    }
+}
+
+impl Context {
+    pub fn eval_function<'a>(&self, func: &ast::Function<'a>, args: &[Value]) -> Value {
+        let mut scope = HashMap::new();
+
+        // TODO what to do with the type here?
+        for ((ident, _ty), val) in func.args.into_iter().zip(args) {
+            scope.insert(ident.value.to_string(), val.clone());
+        }
+
+        self.eval(&func.body, scope)
+    }
+
+    pub fn eval<'a>(&self, expr: &FullExpression<'a>, scope: HashMap<String, Value>) -> Value {
+        match expr {
+            FullExpression::Let(expr) => {
+                for (ident, value) &expr.definitions {
+                    
+                }
+            }
+            unknown => panic!("Unexpected type of expression: {:#?}", unknown),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
