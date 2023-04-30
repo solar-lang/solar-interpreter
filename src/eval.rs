@@ -1,6 +1,7 @@
 use crate::util;
 use crate::Value;
 use std::collections::HashMap;
+use thiserror::Error;
 
 use solar_parser::{ast, ast::expr::FullExpression, Ast};
 
@@ -87,7 +88,34 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn eval_sub_expr(&self, expr: &ast::expr::Value, scope: &mut Scope) -> Value {}
+    fn eval_sub_expr(
+        &self,
+        expr: &ast::expr::Value,
+        scope: &mut Scope,
+    ) -> Result<Value, ErrorType> {
+        use ast::expr::Literal;
+        use ast::expr::Value as V;
+        match expr {
+            V::Literal(lit) => match lit {
+                Literal::StringLiteral(_) => {
+                    panic!("there is a string here? Should be Interpolated String")
+                }
+                Literal::Bool { value, .. } => Ok(Value::Bool(*value)),
+                Literal::Int(int) => {
+                    let i = util::eval_int(int);
+                    if let Err(e) = i {
+                        return Err(EvalError {
+                            // NOTE it would be lovely to have a method to get the line number and row of an AST item.
+                            span: int.span.to_string(),
+                            kind: e.into(),
+                        });
+                    }
+
+                    Ok(Value::Int(i.unwrap()))
+                }
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -123,5 +151,30 @@ impl Scope {
         }
 
         panic!("Scope is supposed to be empty");
+    }
+}
+
+#[derive(Debug, Error)]
+pub struct EvalError {
+    span: String,
+    kind: ErrorType,
+}
+
+#[derive(Debug, Error)]
+enum ErrorType {
+    IntConversion(#[from] std::num::ParseIntError),
+}
+
+impl std::fmt::Display for EvalError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error at: {}:\n{}", self.span, self.span)
+    }
+}
+
+impl std::fmt::Display for ErrorType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorType::IntConversion(e) => e.fmt(&mut f),
+        }
     }
 }

@@ -5,7 +5,7 @@ use eval::*;
 use std::collections::HashMap;
 use value::Value;
 
-use solar_parser::{ast, Ast};
+use solar_parser::Ast;
 
 fn main() {
     use solar_parser::Parse;
