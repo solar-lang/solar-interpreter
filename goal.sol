@@ -18,4 +18,4 @@ fun main() =
         println g
 
 fun greet(n: String) -> String =
-    "Hello" ++ n
+    "Hello " ++ n
