@@ -36,5 +36,5 @@ fn main() {
     // Find main function
     let f_main = ctx.find_main().expect("find main function");
 
-    ctx.eval_function(f_main, &[]);
+    ctx.eval_function(f_main, &[]).expect("run main function");
 }
