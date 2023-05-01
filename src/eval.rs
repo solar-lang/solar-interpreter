@@ -21,6 +21,13 @@ impl<'a> Context<'a> {
         self.sources.get(path)
     }
 
+    pub fn find_main(&'a self) -> Result<&'a ast::Function<'a>, util::FindError> {
+        let path = Vec::new();
+        let ast = self.sources.get(&path).unwrap();
+
+        util::find_in_ast(ast, "main")
+    }
+
     pub fn eval_function(
         &self,
         func: &ast::Function<'a>,
@@ -183,7 +190,7 @@ impl std::fmt::Display for EvalError {
 impl std::fmt::Display for ErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorType::IntConversion(e) => e.fmt(&mut f),
+            ErrorType::IntConversion(e) => e.fmt(f),
         }
     }
 }

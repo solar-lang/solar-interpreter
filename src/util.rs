@@ -6,14 +6,11 @@ pub(crate) fn normalize_path(path: &IdentifierPath) -> Vec<String> {
     // NOTE: this is context dependent.
     // e.g. associated methods don't need to be in scope.
 
-    path.value
-        .into_iter()
-        .map(|i| i.value.to_string())
-        .collect()
+    path.value.iter().map(|i| i.value.to_string()).collect()
 }
 
 #[derive(Debug, Clone)]
-enum FindError {
+pub enum FindError {
     NotFound(String),
 }
 
@@ -27,7 +24,7 @@ impl std::fmt::Display for FindError {
 
 pub fn find_in_ast<'a>(ast: &'a Ast<'a>, item: &str) -> Result<&'a ast::Function<'a>, FindError> {
     for i in &ast.items {
-        match &i {
+        match i {
             ast::body::BodyItem::Function(f) if f.name == item => {
                 // TODO check compatible types here
 
@@ -37,10 +34,11 @@ pub fn find_in_ast<'a>(ast: &'a Ast<'a>, item: &str) -> Result<&'a ast::Function
                 panic!("Resolver can't yet handle types")
             }
 
+            _ => continue,
             // Tests don't have names,
-            ast::body::BodyItem::Test(_) => continue,
+            // ast::body::BodyItem::Test(_) => continue,
             // Let bindings are resolved into the global scope
-            ast::body::BodyItem::Let(_) => continue,
+            // ast::body::BodyItem::Let(_) => continue,
         }
     }
 

@@ -24,9 +24,6 @@ fn main() {
         ast
     };
 
-    // Find main function
-    let f_main = util::find_in_ast(&ast, "main").expect("find main function");
-
     let ctx = Context {
         sources: [(Vec::new(), ast)].into_iter().collect(),
         ictx: InterpreterContext {
@@ -35,6 +32,9 @@ fn main() {
             global_scope: HashMap::new(),
         },
     };
+
+    // Find main function
+    let f_main = ctx.find_main().expect("find main function");
 
     ctx.eval_function(f_main, &[]);
 }
