@@ -23,3 +23,21 @@ pub enum Int {
     Uint16(u16),
     Uint8(u8),
 }
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Value::String(Rc::new(value))
+    }
+}
+
+impl From<()> for Value {
+    fn from(_: ()) -> Self {
+        Value::Void
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Value::Bool(value)
+    }
+}
