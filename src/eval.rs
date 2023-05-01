@@ -1,24 +1,114 @@
 use crate::util;
 use crate::Value;
 use std::collections::HashMap;
+use std::sync::Mutex;
 use thiserror::Error;
 
 use solar_parser::{ast, ast::expr::FullExpression, Ast};
 
 pub struct InterpreterContext {
-    pub stdout: Box<dyn std::io::Write>,
-    pub stdin: Box<dyn std::io::Read>,
+    pub stdout: Mutex<Box<dyn std::io::Write>>,
+    pub stdin: Mutex<Box<dyn std::io::Read>>,
     pub global_scope: HashMap<String, Value>,
 }
 
 pub struct Context<'a> {
     pub sources: HashMap<Vec<String>, Ast<'a>>,
-    pub ictx: InterpreterContext,
+    pub interpreter_ctx: InterpreterContext,
 }
 
 impl<'a> Context<'a> {
     fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'a>> {
         self.sources.get(path)
+    }
+
+    fn check_buildin_func(
+        &self,
+        func: &ast::expr::FunctionCall<'a>,
+        args: &[Value],
+    ) -> Option<Result<Value, EvalError>> {
+        if func.function_name.value.len() != 1 {
+            return None;
+        }
+
+        let fname = func.function_name.value[0].value;
+
+        if !fname.starts_with("buildin_") || !fname.starts_with("Buildin_") {
+            return None;
+        }
+
+        let res = match fname {
+            "buildin_readline" => self.buildin_readline(args),
+            "buildin_print" => self.buildin_print(args),
+
+            _ => Err(EvalError {
+                span: func.span.to_string(),
+                kind: ErrorType::WrongBuildin {
+                    found: fname.to_string(),
+                },
+            }),
+        };
+
+        Some(res)
+    }
+
+    fn buildin_print(&self, args: &[Value]) -> Result<Value, EvalError> {
+        // allowed overloadings:
+        // [String]
+        // []
+        for arg in args {
+            let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
+
+            write!(out, "{arg}").expect("write to stdout");
+        }
+
+        Ok(Value::Void)
+    }
+
+    fn buildin_readline(&self, args: &[Value]) -> Result<Value, EvalError> {
+        // allowed overloadings:
+        // [String]
+        // []
+        if !args.is_empty() {
+            if args.len() > 1 {
+                panic!("Expected 1 argument of type string to buildin_readline");
+            }
+
+            let s = if let Value::String(s) = &args[0] {
+                s
+            } else {
+                panic!("Expected argument to buildin_readline to be of type string");
+            };
+
+            let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
+
+            write!(out, "{s}").expect("write to stdout");
+        }
+
+        let mut r = self
+            .interpreter_ctx
+            .stdin
+            .lock()
+            .expect("lock standart input");
+        let mut s = Vec::new();
+
+        loop {
+            // read exactly one character
+            let mut buf = [0];
+            r.read_exact(&mut buf).expect("read from input");
+            // grab buffer as character
+            let b = buf[0];
+
+            // if the character is new line, skip
+            if b == b'\n' {
+                break;
+            }
+
+            s.push(b)
+        }
+
+        let s = String::from_utf8(s).expect("parse stdin as a string");
+        Ok(s.into())
     }
 
     pub fn find_main(&'a self) -> Result<&'a ast::Function<'a>, util::FindError> {
@@ -71,6 +161,10 @@ impl<'a> Context<'a> {
                     for arg in fc.args.iter() {
                         let v = self.eval_sub_expr(&arg.value, scope)?;
                         args.push(v);
+                    }
+
+                    if let Some(result) = self.check_buildin_func(fc, &args) {
+                        return result;
                     }
 
                     // Find function name in scope
@@ -179,6 +273,7 @@ pub struct EvalError {
 #[derive(Debug, Error)]
 enum ErrorType {
     IntConversion(#[from] std::num::ParseIntError),
+    WrongBuildin { found: String },
 }
 
 impl std::fmt::Display for EvalError {
@@ -191,6 +286,9 @@ impl std::fmt::Display for ErrorType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ErrorType::IntConversion(e) => e.fmt(f),
+            ErrorType::WrongBuildin { found } => {
+                write!(f, "only buildin methods are allowed to start with buildin_ or Buildin_.\n Found {found}.")
+            }
         }
     }
 }

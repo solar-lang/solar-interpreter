@@ -12,10 +12,10 @@
 # - buildin functions
 
 fun main() =
-    let n = readline,
+    let n = buildin_readline,
         g = greet n
     in
-        println g
+        print g
 
 fun greet(n: String) -> String =
-    "Hello " ++ n
+    "Hello " ++ n ++ "\n"
