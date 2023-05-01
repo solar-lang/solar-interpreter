@@ -43,7 +43,7 @@ impl<'a> Context<'a> {
         self.eval(&func.body, &mut scope)
     }
 
-    pub fn eval(&self, expr: &FullExpression, mut scope: &mut Scope) -> Result<Value, EvalError> {
+    pub fn eval(&self, expr: &FullExpression, scope: &mut Scope) -> Result<Value, EvalError> {
         match expr {
             FullExpression::Let(expr) => {
                 // Insert all let bindings into scope
@@ -69,7 +69,7 @@ impl<'a> Context<'a> {
                 ast::expr::Expression::FunctionCall(fc) => {
                     let mut args: Vec<Value> = Vec::with_capacity(fc.args.len());
                     for arg in fc.args.iter() {
-                        let v = self.eval_sub_expr(&arg.value, &mut scope)?;
+                        let v = self.eval_sub_expr(&arg.value, scope)?;
                         args.push(v);
                     }
 
@@ -86,13 +86,13 @@ impl<'a> Context<'a> {
                     // Find function in AST
                     // TODO first check if it was found before
                     // and use compiled version
-                    let func = util::find_in_ast(&ast, &name)
+                    let func = util::find_in_ast(ast, &name)
                         // TODO should be an error
                         .expect("find method or type");
 
-                    self.eval_function(&func, &args)
+                    self.eval_function(func, &args)
                 }
-                ast::expr::Expression::Value(value) => self.eval_sub_expr(&value, &mut scope),
+                ast::expr::Expression::Value(value) => self.eval_sub_expr(value, scope),
             },
 
             expr => panic!("Unexpected type of expression: {expr:#?}"),
