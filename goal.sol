@@ -21,3 +21,6 @@ fun greet(n: String) -> String =
     "Hello " ++ &n ++ "\n"
 
 fun &(a) = buildin_identity a
+
+fun concat(a: String, b: String) -> String = 
+    buildin_str_concat a b
