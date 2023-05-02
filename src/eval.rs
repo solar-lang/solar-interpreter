@@ -23,10 +23,8 @@ pub struct FileContext<'a> {
     pub ctx: Context<'a>,
 
     // imports
-    pub imports: HashMap<String, Import>
-
-    // Symbols inside the file
-    // global_scope: HashMap<String, Value>,
+    pub imports: HashMap<String, Import>, // Symbols inside the file
+                                          // global_scope: HashMap<String, Value>,
 }
 
 pub enum Import {
@@ -45,7 +43,6 @@ impl<'a> Deref for FileContext<'a> {
     fn deref(&self) -> &Self::Target {
         &self.ctx
     }
-
 }
 
 impl<'a> FileContext<'a> {
@@ -72,6 +69,7 @@ impl<'a> FileContext<'a> {
         let shortened = &fname["buildin_".len()..];
 
         let res = match shortened {
+            "str_concat" => self.buildin_str_concat(args),
             "identity" => self.buildin_identity(args),
             "readline" => self.buildin_readline(args),
             "print" => self.buildin_print(args),
@@ -87,6 +85,27 @@ impl<'a> FileContext<'a> {
         Some(res)
     }
 
+    fn buildin_str_concat(&self, args: &[Value]) -> Result<Value, EvalError> {
+        let mut s = String::new();
+
+        for arg in args {
+            match arg {
+                Value::String(arg) => s.push_str(arg),
+                _ => {
+                    return Err(EvalError {
+                        span: String::new(),
+                        kind: ErrorType::TypeError {
+                            got: arg.type_as_str().to_string(),
+                            wanted: "String".to_string(),
+                        },
+                    })
+                }
+            }
+        }
+
+        Ok(s.into())
+    }
+
     fn buildin_print(&self, args: &[Value]) -> Result<Value, EvalError> {
         // allowed overloadings:
         // [String]
@@ -100,14 +119,14 @@ impl<'a> FileContext<'a> {
 
         Ok(Value::Void)
     }
-    
-    fn buildin_identity(&self, args: &[Value]) -> Result<Value, EvalError> {
-            // only the identiy overloading is implemented for now.
-            if args.len() != 1 {
-                panic!("& is only implemented with 1 argument");
-            }
 
-            Ok(args[0].clone())
+    fn buildin_identity(&self, args: &[Value]) -> Result<Value, EvalError> {
+        // only the identiy overloading is implemented for now.
+        if args.len() != 1 {
+            panic!("& is only implemented with 1 argument");
+        }
+
+        Ok(args[0].clone())
     }
 
     fn buildin_readline(&self, args: &[Value]) -> Result<Value, EvalError> {
@@ -378,6 +397,7 @@ pub struct EvalError {
 enum ErrorType {
     IntConversion(#[from] std::num::ParseIntError),
     WrongBuildin { found: String },
+    TypeError { got: String, wanted: String },
 }
 
 impl std::fmt::Display for EvalError {
@@ -392,6 +412,10 @@ impl std::fmt::Display for ErrorType {
             ErrorType::IntConversion(e) => e.fmt(f),
             ErrorType::WrongBuildin { found } => {
                 write!(f, "only buildin methods are allowed to start with buildin_ or Buildin_.\n Found {found}.")
+            }
+
+            ErrorType::TypeError { got, wanted } => {
+                write!(f, "Wrong type supplied. Expected {wanted}, got {got}")
             }
         }
     }

@@ -18,16 +18,22 @@ pub enum Value {
     FnBuildin(GenericFn),
 }
 
-impl Debug for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ty = match self {
+impl Value {
+    pub fn type_as_str(&self) -> &'static str {
+        match self {
             Value::Void => "Void",
             Value::Bool(_) => "Bool",
             Value::Int(_) => "Int",
             Value::Float(_) => "Float",
             Value::String(_) => "String",
             Value::FnBuildin(_) => "Fn",
-        };
+        }
+    }
+}
+
+impl Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ty = self.type_as_str();
 
         write!(f, "({ty}) {self}")
     }
