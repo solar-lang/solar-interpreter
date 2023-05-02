@@ -30,8 +30,14 @@ fn main() {
         interpreter_ctx: InterpreterContext {
             stdout: Mutex::new(Box::new(std::io::stdout())),
             stdin: Mutex::new(Box::new(std::io::stdin())),
-            global_scope: HashMap::new(),
         },
+    };
+
+    let ctx = FileContext {
+        this: vec![],
+        ctx,
+        imports: HashMap::new(),
+
     };
 
     // Find main function

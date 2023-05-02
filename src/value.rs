@@ -1,18 +1,36 @@
 use std::{
-    fmt::{self, write},
+    fmt::{self, Debug},
     rc::Rc,
 };
 
 pub type GcString = Rc<String>;
 
+type GenericFn = Rc<dyn Fn(&[Value]) -> Value>;
+
 /// Represents a Dynamically Typed Value
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum Value {
     Void,
     Bool(bool),
     Int(Int),
     Float(f64),
     String(GcString),
+    FnBuildin(GenericFn),
+}
+
+impl Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ty = match self {
+            Value::Void => "Void",
+            Value::Bool(_) => "Bool",
+            Value::Int(_) => "Int",
+            Value::Float(_) => "Float",
+            Value::String(_) => "String",
+            Value::FnBuildin(_) => "Fn",
+        };
+
+        write!(f, "({ty}) {self}")
+    }
 }
 
 impl fmt::Display for Value {
@@ -23,6 +41,7 @@ impl fmt::Display for Value {
             Value::Int(i) => write!(f, "{i}"),
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
+            Value::FnBuildin(_) => Ok(()),
         }
     }
 }
@@ -70,5 +89,11 @@ impl From<()> for Value {
 impl From<bool> for Value {
     fn from(value: bool) -> Self {
         Value::Bool(value)
+    }
+}
+
+impl<T: 'static + Fn(&[Value]) -> Value> From<T> for Value {
+    fn from(value: T) -> Self {
+        Value::FnBuildin(Rc::new(value))
     }
 }

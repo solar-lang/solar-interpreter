@@ -1,7 +1,7 @@
 use crate::util;
 use crate::Value;
-use solar_parser::ast::expr::FunctionArg;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::sync::Mutex;
 use thiserror::Error;
 
@@ -10,7 +10,6 @@ use solar_parser::{ast, ast::expr::FullExpression, Ast};
 pub struct InterpreterContext {
     pub stdout: Mutex<Box<dyn std::io::Write>>,
     pub stdin: Mutex<Box<dyn std::io::Read>>,
-    pub global_scope: HashMap<String, Value>,
 }
 
 pub struct Context<'a> {
@@ -18,7 +17,38 @@ pub struct Context<'a> {
     pub interpreter_ctx: InterpreterContext,
 }
 
-impl<'a> Context<'a> {
+pub struct FileContext<'a> {
+    // Base identifier for this file.
+    pub this: Vec<String>,
+    pub ctx: Context<'a>,
+
+    // imports
+    pub imports: HashMap<String, Import>
+
+    // Symbols inside the file
+    // global_scope: HashMap<String, Value>,
+}
+
+pub enum Import {
+    /// Helps resolving imports to other modules
+    /// e.g. std.collections
+    Module(Vec<String>),
+
+    /// Concrete Symbol.
+    /// A Function or a global.
+    /// Stored is the ID to the entire thing.
+    Symbol(Vec<String>),
+}
+
+impl<'a> Deref for FileContext<'a> {
+    type Target = Context<'a>;
+    fn deref(&self) -> &Self::Target {
+        &self.ctx
+    }
+
+}
+
+impl<'a> FileContext<'a> {
     fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'a>> {
         self.sources.get(path)
     }
@@ -42,6 +72,7 @@ impl<'a> Context<'a> {
         let shortened = &fname["buildin_".len()..];
 
         let res = match shortened {
+            "identity" => self.buildin_identity(args),
             "readline" => self.buildin_readline(args),
             "print" => self.buildin_print(args),
 
@@ -64,9 +95,19 @@ impl<'a> Context<'a> {
             let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
 
             write!(out, "{arg}").expect("write to stdout");
+            out.flush().expect("write to stdout");
         }
 
         Ok(Value::Void)
+    }
+    
+    fn buildin_identity(&self, args: &[Value]) -> Result<Value, EvalError> {
+            // only the identiy overloading is implemented for now.
+            if args.len() != 1 {
+                panic!("& is only implemented with 1 argument");
+            }
+
+            Ok(args[0].clone())
     }
 
     fn buildin_readline(&self, args: &[Value]) -> Result<Value, EvalError> {
@@ -87,6 +128,7 @@ impl<'a> Context<'a> {
             let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
 
             write!(out, "{s}").expect("write to stdout");
+            out.flush().expect("flush stdout");
         }
 
         let mut r = self
