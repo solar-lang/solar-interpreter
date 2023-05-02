@@ -15,12 +15,16 @@ fun main() =
     let n = buildin_readline "What's your name? ",
         g = greet n
     in
-        print g
+        println g
 
 fun greet(n: String) -> String =
-    "Hello " ++ &n ++ "\n"
+    "Hello " ++ &n
 
 fun &(a) = buildin_identity a
 
 fun concat(a: String, b: String) -> String = 
     buildin_str_concat a b
+
+fun println(msg: String) = 
+    let msg = &msg ++ "\n" in
+        buildin_print msg
