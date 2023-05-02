@@ -12,7 +12,7 @@
 # - buildin functions
 
 fun main() =
-    let n = buildin_readline,
+    let n = buildin_readline "What's your name?\n",
         g = greet n
     in
         print g
