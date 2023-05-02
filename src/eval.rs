@@ -134,22 +134,26 @@ impl<'a> Context<'a> {
             scope.push(ident.value, val.clone());
         }
 
-        self.eval(&func.body, &mut scope)
+        self.eval_full_expression(&func.body, &mut scope)
     }
 
-    pub fn eval(&self, expr: &FullExpression, scope: &mut Scope) -> Result<Value, EvalError> {
+    pub fn eval_full_expression(
+        &self,
+        expr: &FullExpression,
+        scope: &mut Scope,
+    ) -> Result<Value, EvalError> {
         match expr {
             FullExpression::Let(expr) => {
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
-                    let value = self.eval(value, scope)?;
+                    let value = self.eval_full_expression(value, scope)?;
                     scope.push(ident.value, value)
                 }
 
                 // We now have readied the scope and are able to evaluate the body
 
-                let v = self.eval(&expr.body, scope);
+                let v = self.eval_full_expression(&expr.body, scope);
 
                 // Now we remove the let bindings from the scope
                 for _ in &expr.definitions {
@@ -248,6 +252,14 @@ impl<'a> Context<'a> {
                 }
 
                 self.find_in_scope(&path, scope)
+            }
+            V::Tuple(expr) => {
+                if expr.values.len() > 1 {
+                    panic!("tuple values are not ready");
+                }
+                let expr = &expr.values[0];
+
+                self.eval_full_expression(expr, scope)
             }
             _ => panic!("evaluation not ready for \n{expr:#?}"),
         }
