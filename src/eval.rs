@@ -21,22 +21,21 @@ pub struct FileContext<'a> {
     // Base identifier for this file.
     pub this: Vec<String>,
     pub ctx: Context<'a>,
-
     // imports
-    pub imports: HashMap<String, Import>, // Symbols inside the file
-                                          // global_scope: HashMap<String, Value>,
+    // pub imports: HashMap<String, Import>, // Symbols inside the file
+    // global_scope: HashMap<String, Value>,
 }
 
-pub enum Import {
-    /// Helps resolving imports to other modules
-    /// e.g. std.collections
-    Module(Vec<String>),
+// pub enum Import {
+/// Helps resolving imports to other modules
+/// e.g. std.collections
+// Module(Vec<String>),
 
-    /// Concrete Symbol.
-    /// A Function or a global.
-    /// Stored is the ID to the entire thing.
-    Symbol(Vec<String>),
-}
+/// Concrete Symbol.
+/// A Function or a global.
+/// Stored is the ID to the entire thing.
+// Symbol(Vec<String>),
+// }
 
 impl<'a> Deref for FileContext<'a> {
     type Target = Context<'a>;
@@ -161,10 +160,10 @@ impl<'a> FileContext<'a> {
             // read exactly one character
             let mut buf = [0];
             r.read_exact(&mut buf).expect("read from input");
+
             // grab buffer as character
             let b = buf[0];
 
-            // if the character is new line, skip
             if b == b'\n' {
                 break;
             }
@@ -177,6 +176,7 @@ impl<'a> FileContext<'a> {
     }
 
     pub fn find_main(&'a self) -> Result<&'a ast::Function<'a>, util::FindError> {
+        // TODO this might be a value
         let path = Vec::new();
         let ast = self.sources.get(&path).unwrap();
 
@@ -240,12 +240,14 @@ impl<'a> FileContext<'a> {
     ) -> Result<Value, EvalError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
+                // First, evaluate all arguments
                 let mut args: Vec<Value> = Vec::with_capacity(fc.args.len());
                 for arg in fc.args.iter() {
                     let v = self.eval_sub_expr(&arg.value, scope)?;
                     args.push(v);
                 }
 
+                // See, if we're calling a special buildin function
                 if let Some(result) = self.check_buildin_func(fc, &args) {
                     return result;
                 }
@@ -255,6 +257,13 @@ impl<'a> FileContext<'a> {
                 let mut path = util::normalize_path(&fc.function_name);
                 let name = path.pop().unwrap();
 
+                // TODO if the path is empty, might be seeking
+                // just a variable from the scope
+                // or a function from the scope.
+                // check that first!
+
+                // Search for ast associated with function
+                // TODO this should be moved into [Context::find_in_scope]
                 let ast = self
                     .resolve_ast(&path)
                     // TODO this should be an error
@@ -262,11 +271,15 @@ impl<'a> FileContext<'a> {
 
                 // Find function in AST
                 // TODO first check if it was found before
+                // TODO this might be a value
                 // and use compiled version
                 let func = util::find_in_ast(ast, &name)
                     // TODO should be an error
                     .expect("find method or type");
 
+                // TODO check (all) candidates for best fit!
+
+                // TODO Only call, if the args > 0 or func is a function
                 self.eval_function(func, &args)
             }
             ast::expr::Expression::Value(value) => self.eval_sub_expr(value, scope),
@@ -326,6 +339,31 @@ impl<'a> FileContext<'a> {
         }
     }
 
+    /// TODO problems:
+    /// how do we find symbols?
+    /// 0.) Maybe it's just a symbol in scope
+    /// [name] = path => might be symbolic lookup
+    ///      if `name` is in scope:
+    ///      return `scope[name]`
+    ///
+    /// candidates := []
+    ///
+    /// 1.) if the path has only one element,
+    ///     we might be doing symbolic lookup in current module.
+    ///     No Need to check imports for this.
+    ///     But remember, there's a catch.
+    /// candidates.append_all(find_inn_module(this_module))
+    ///
+    /// 2.) see, if the element is from an import
+    ///
+    /// basepath := imports.contains(path[0])
+    /// full_path := basepath ++ path[1..]
+    /// now, find the symbol full_path.last() in module fullpath[..(-1)]
+    /// module: collection of files (ASTs) in directory and lib
+    /// e.g. seek through all ASTs in module
+    /// candidates.append_all(find_in_module(full_path))
+    ///
+    /// return candidates
     fn find_in_scope(&self, path: &[String], scope: &Scope) -> Result<Value, EvalError> {
         // if the length of the path is > 1, it's guaranteed looking up an import.
 
@@ -347,7 +385,7 @@ impl<'a> FileContext<'a> {
 
         // TODO how to represent the symbols available from a file?
         // TODO make value represent Functions.
-        unimplemented!("resolve imports and scope")
+        unimplemented!("resolve imports and scope. Not found {path:?}")
     }
 }
 
@@ -377,14 +415,6 @@ impl Scope {
     pub fn pop(&mut self) -> Value {
         self.values.pop().expect("find value in local scope").1
     }
-
-    pub fn assert_empty(&self) {
-        if self.values.is_empty() {
-            return;
-        }
-
-        panic!("Scope is supposed to be empty");
-    }
 }
 
 #[derive(Debug, Error)]
@@ -402,7 +432,7 @@ enum ErrorType {
 
 impl std::fmt::Display for EvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error at: {}:\n{}", self.span, self.span)
+        write!(f, "error at: {}:\n{}", self.span, self.kind)
     }
 }
 

@@ -9,16 +9,17 @@ type GenericFn = Rc<dyn Fn(&[Value]) -> Value>;
 
 /// Represents a Dynamically Typed Value
 #[derive(Clone)]
-pub enum Value {
+pub enum Value<'a> {
     Void,
     Bool(bool),
     Int(Int),
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn),
+    StaticFunction(solar_parser::ast::Function<'a>),
 }
 
-impl Value {
+impl<'a> Value<'a> {
     pub fn type_as_str(&self) -> &'static str {
         match self {
             Value::Void => "Void",
@@ -27,6 +28,7 @@ impl Value {
             Value::Float(_) => "Float",
             Value::String(_) => "String",
             Value::FnBuildin(_) => "Fn",
+            Value::StaticFunction(_) => "Fn",
         }
     }
 }
@@ -48,6 +50,7 @@ impl fmt::Display for Value {
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
             Value::FnBuildin(_) => Ok(()),
+            Value::StaticFunction(_) => Ok(()),
         }
     }
 }

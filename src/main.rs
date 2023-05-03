@@ -2,7 +2,6 @@ mod eval;
 mod util;
 mod value;
 use eval::*;
-use std::collections::HashMap;
 use std::sync::Mutex;
 use value::Value;
 
@@ -36,8 +35,7 @@ fn main() {
     let ctx = FileContext {
         this: vec![],
         ctx,
-        imports: HashMap::new(),
-
+        // imports: HashMap::new(),
     };
 
     // Find main function
