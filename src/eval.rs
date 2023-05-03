@@ -12,15 +12,15 @@ pub struct InterpreterContext {
     pub stdin: Mutex<Box<dyn std::io::Read>>,
 }
 
-pub struct Context<'a> {
-    pub sources: HashMap<Vec<String>, Ast<'a>>,
+pub struct Context {
+    pub sources: HashMap<Vec<String>, Ast<'static>>,
     pub interpreter_ctx: InterpreterContext,
 }
 
-pub struct FileContext<'a> {
+pub struct FileContext {
     // Base identifier for this file.
     pub this: Vec<String>,
-    pub ctx: Context<'a>,
+    pub ctx: Context,
     // imports
     // pub imports: HashMap<String, Import>, // Symbols inside the file
     // global_scope: HashMap<String, Value>,
@@ -37,21 +37,21 @@ pub struct FileContext<'a> {
 // Symbol(Vec<String>),
 // }
 
-impl<'a> Deref for FileContext<'a> {
-    type Target = Context<'a>;
+impl Deref for FileContext {
+    type Target = Context;
     fn deref(&self) -> &Self::Target {
         &self.ctx
     }
 }
 
-impl<'a> FileContext<'a> {
-    fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'a>> {
+impl FileContext {
+    fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'static>> {
         self.sources.get(path)
     }
 
     fn check_buildin_func(
         &self,
-        func: &ast::expr::FunctionCall<'a>,
+        func: &ast::expr::FunctionCall,
         args: &[Value],
     ) -> Option<Result<Value, EvalError>> {
         if func.function_name.value.len() != 1 {
@@ -175,7 +175,7 @@ impl<'a> FileContext<'a> {
         Ok(s.into())
     }
 
-    pub fn find_main(&'a self) -> Result<&'a ast::Function<'a>, util::FindError> {
+    pub fn find_main(&self) -> Result<&ast::Function, util::FindError> {
         // TODO this might be a value
         let path = Vec::new();
         let ast = self.sources.get(&path).unwrap();
@@ -183,11 +183,7 @@ impl<'a> FileContext<'a> {
         util::find_in_ast(ast, "main")
     }
 
-    pub fn eval_function(
-        &self,
-        func: &ast::Function<'a>,
-        args: &[Value],
-    ) -> Result<Value, EvalError> {
+    pub fn eval_function(&self, func: &ast::Function, args: &[Value]) -> Result<Value, EvalError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
@@ -235,7 +231,7 @@ impl<'a> FileContext<'a> {
 
     fn eval_minor_expr(
         &self,
-        expr: &ast::expr::Expression<'a>,
+        expr: &ast::expr::Expression,
         scope: &mut Scope,
     ) -> Result<Value, EvalError> {
         match expr {
