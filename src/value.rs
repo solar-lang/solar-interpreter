@@ -17,7 +17,7 @@ pub enum Value {
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn),
-    AstFunction(ast::Function<'static>),
+    AstFunction(&'static ast::Function<'static>),
 }
 
 impl Value {
@@ -84,8 +84,8 @@ impl fmt::Display for Int {
     }
 }
 
-impl From<ast::Function<'static>> for Value {
-    fn from(value: ast::Function<'static>) -> Self {
+impl From<&'static ast::Function<'static>> for Value {
+    fn from(value: &'static ast::Function<'static>) -> Self {
         Value::AstFunction(value)
     }
 }

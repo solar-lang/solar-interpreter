@@ -1,4 +1,5 @@
 use solar_parser::{ast, ast::identifier::IdentifierPath, Ast};
+use thiserror::Error;
 
 pub(crate) fn normalize_path(path: &IdentifierPath) -> Vec<String> {
     // TODO find path[0] in imports
@@ -9,7 +10,7 @@ pub(crate) fn normalize_path(path: &IdentifierPath) -> Vec<String> {
     path.value.iter().map(|i| i.value.to_string()).collect()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum FindError {
     NotFound(String),
 }
@@ -22,6 +23,7 @@ impl std::fmt::Display for FindError {
     }
 }
 
+// TODO return Vec of Functions!
 pub fn find_in_ast<'a>(ast: &'a Ast<'a>, item: &str) -> Result<&'a ast::Function<'a>, FindError> {
     for i in &ast.items {
         match i {

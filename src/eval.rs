@@ -1,4 +1,5 @@
 use crate::util;
+use crate::util::FindError;
 use crate::Value;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -45,6 +46,12 @@ impl Deref for FileContext {
 }
 
 impl FileContext {
+    /// Returns the AST of this file
+    fn ast(&self) -> &Ast<'static> {
+        self.resolve_ast(&self.this)
+            .expect("current AST to always be valid")
+    }
+
     fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'static>> {
         self.sources.get(path)
     }
@@ -73,11 +80,8 @@ impl FileContext {
             "readline" => self.buildin_readline(args),
             "print" => self.buildin_print(args),
 
-            _ => Err(EvalError {
-                span: func.span.to_string(),
-                kind: ErrorType::WrongBuildin {
-                    found: fname.to_string(),
-                },
+            _ => Err(EvalError::WrongBuildin {
+                found: fname.to_string(),
             }),
         };
 
@@ -91,12 +95,9 @@ impl FileContext {
             match arg {
                 Value::String(arg) => s.push_str(arg),
                 _ => {
-                    return Err(EvalError {
-                        span: String::new(),
-                        kind: ErrorType::TypeError {
-                            got: arg.type_as_str().to_string(),
-                            wanted: "String".to_string(),
-                        },
+                    return Err(EvalError::TypeError {
+                        got: arg.type_as_str().to_string(),
+                        wanted: "String".to_string(),
                     })
                 }
             }
@@ -249,34 +250,31 @@ impl FileContext {
                 }
 
                 // Find function name in scope
-                // TODO first check if Type::path contains function name
-                let mut path = util::normalize_path(&fc.function_name);
-                let name = path.pop().unwrap();
+                let path = util::normalize_path(&fc.function_name);
 
-                // TODO if the path is empty, might be seeking
-                // just a variable from the scope
-                // or a function from the scope.
-                // check that first!
+                // TODO this does not yet check, if the module where the type of the first
+                // argument is declared, contains the symbol. This has precedence over imports and declarations.
+                let mut symbol_candidates = self.resolve_symbol(&path, scope)?;
 
-                // Search for ast associated with function
-                // TODO this should be moved into [Context::find_in_scope]
-                let ast = self
-                    .resolve_ast(&path)
-                    // TODO this should be an error
-                    .expect("find path of expression");
+                // TODO check all candidates first!
+                if symbol_candidates.len() > 1 {
+                    panic!("found multiple candidates for {path:?}:\n{symbol_candidates:#?}");
+                }
 
-                // Find function in AST
-                // TODO first check if it was found before
-                // TODO this might be a value
-                // and use compiled version
-                let func = util::find_in_ast(ast, &name)
-                    // TODO should be an error
-                    .expect("find method or type");
+                let symbol: Value = symbol_candidates.pop().unwrap();
 
-                // TODO check (all) candidates for best fit!
-
-                // TODO Only call, if the args > 0 or func is a function
-                self.eval_function(func, &args)
+                match symbol {
+                    // Only evaluate functions directly
+                    // otherwise return value
+                    Value::AstFunction(ref func) => self.eval_function(func, &args),
+                    // if there are argument supplied to values,
+                    // this is definitly and error.
+                    v if !args.is_empty() => Err(EvalError::TypeError {
+                        got: format!("{v}"),
+                        wanted: "fun(...) -> ...".to_string(),
+                    }),
+                    value => Ok(value),
+                }
             }
             ast::expr::Expression::Value(value) => self.eval_sub_expr(value, scope),
         }
@@ -296,11 +294,7 @@ impl FileContext {
                 Literal::Int(int) => {
                     let i = util::eval_int(int);
                     if let Err(e) = i {
-                        return Err(EvalError {
-                            // NOTE it would be lovely to have a method to get the line number and row of an AST item.
-                            span: int.span.to_string(),
-                            kind: e.into(),
-                        });
+                        return Err(e.into());
                     }
 
                     Ok(Value::Int(i.unwrap()))
@@ -321,7 +315,12 @@ impl FileContext {
                     panic!("no field access like this");
                 }
 
-                self.find_in_scope(&path, scope)
+                let mut result = self.resolve_symbol(&path, scope)?;
+                if result.len() != 1 {
+                    panic!("found multiple results for {path:?}:\n {result:#?}")
+                }
+
+                Ok(result.pop().unwrap())
             }
             V::Tuple(expr) => {
                 if expr.values.len() > 1 {
@@ -335,7 +334,10 @@ impl FileContext {
         }
     }
 
-    /// TODO problems:
+    ///
+    /// Returns a set of candidates for the symbol.
+    /// Resolving the candidates requires further knowledge.
+    ///
     /// how do we find symbols?
     /// 0.) Maybe it's just a symbol in scope
     /// [name] = path => might be symbolic lookup
@@ -360,28 +362,66 @@ impl FileContext {
     /// candidates.append_all(find_in_module(full_path))
     ///
     /// return candidates
-    fn find_in_scope(&self, path: &[String], scope: &Scope) -> Result<Value, EvalError> {
+    fn resolve_symbol(
+        &self,
+        path: &[String],
+        // TODO type of first argument is also relevant! Add as argument
+        scope: &Scope,
+    ) -> Result<Vec<Value>, EvalError> {
+        // TODO check if it was found before, and return compiled version
+
         // if the length of the path is > 1, it's guaranteed looking up an import.
 
-        // 1.) See, if item is in scope.
-        // The scope only holds arguments and let declarations.
-        // Only one item will be returned by this.
-        if let Some(item) = scope.get(&path[0]) {
-            return Ok(item.clone());
+        // if there is no path, this might
+        // be just a symbol declared earlier
+        // via let ... in, or passed as an argument
+        if let [name] = path {
+            // 0.) See, if it's a symbol in scope.
+            // Local scope overrides everything.
+            // The scope only holds arguments and let declarations.
+            // Only one item will be returned by this.
+            if let Some(item) = scope.get(name) {
+                return Ok(vec![item.clone()]);
+            }
         }
 
-        // 2.) See, if item inside imports
+        let mut candidates: Vec<Value> = Vec::new();
+        if let [name] = path {
+            // if the path is only one element long,
+            // we must also look up the local module.
+            // that is ALL Asts within this module.
+            // TODO requires imports/modules
+
+            // TODO ALSO CHECK ALL OTHER ASTS IN CURRENT MODULE!
+            // e.g. self.asts_in_module()
+            let ast = self.ast();
+
+            let res = util::find_in_ast(&ast, name)?;
+            // if let Ok(found) = util::find_in_ast(&ast, name) {
+            //     candidates.push(found);
+            // }
+            candidates.push(Value::AstFunction(res.clone()));
+        }
+
+        Ok(candidates)
+
+        // 2.) see, if the element is from an import
         // Note, this might result in a number of candidates to check!
         // E.g.  add(Int, Float) -> Float     declared in local scope
         //       add(Int, Int) -> Int         imported
-
-        // get all items in scope matching the items name.
-        // get all items from imports matching the items name.
-        // return all
+        //
+        // basepath := imports.contains(path[0])
+        // full_path := basepath ++ path[1..]
+        // now, find the symbol full_path.last() in module fullpath[..(-1)]
+        // module: collection of files (ASTs) in directory and lib
+        // e.g. seek through all ASTs in module
+        // candidates.append_all(find_in_module(full_path))
+        //
+        // return candidates
 
         // TODO how to represent the symbols available from a file?
         // TODO make value represent Functions.
-        unimplemented!("resolve imports and scope. Not found {path:?}")
+        // unimplemented!("resolve imports and scope. Not found {path:?}")
     }
 }
 
@@ -414,33 +454,23 @@ impl Scope {
 }
 
 #[derive(Debug, Error)]
-pub struct EvalError {
-    span: String,
-    kind: ErrorType,
-}
-
-#[derive(Debug, Error)]
-enum ErrorType {
+enum EvalError {
     IntConversion(#[from] std::num::ParseIntError),
+    FindError(#[from] FindError),
     WrongBuildin { found: String },
     TypeError { got: String, wanted: String },
 }
 
 impl std::fmt::Display for EvalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error at: {}:\n{}", self.span, self.kind)
-    }
-}
-
-impl std::fmt::Display for ErrorType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorType::IntConversion(e) => e.fmt(f),
-            ErrorType::WrongBuildin { found } => {
+            Self::IntConversion(e) => e.fmt(f),
+            Self::FindError(e) => e.fmt(f),
+            Self::WrongBuildin { found } => {
                 write!(f, "only buildin methods are allowed to start with buildin_ or Buildin_.\n Found {found}.")
             }
 
-            ErrorType::TypeError { got, wanted } => {
+            Self::TypeError { got, wanted } => {
                 write!(f, "Wrong type supplied. Expected {wanted}, got {got}")
             }
         }
