@@ -1,3 +1,4 @@
+use solar_parser::ast;
 use std::{
     fmt::{self, Debug},
     rc::Rc,
@@ -9,17 +10,17 @@ type GenericFn = Rc<dyn Fn(&[Value]) -> Value>;
 
 /// Represents a Dynamically Typed Value
 #[derive(Clone)]
-pub enum Value<'a> {
+pub enum Value {
     Void,
     Bool(bool),
     Int(Int),
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn),
-    StaticFunction(solar_parser::ast::Function<'a>),
+    AstFunction(ast::Function<'static>),
 }
 
-impl<'a> Value<'a> {
+impl Value {
     pub fn type_as_str(&self) -> &'static str {
         match self {
             Value::Void => "Void",
@@ -28,7 +29,7 @@ impl<'a> Value<'a> {
             Value::Float(_) => "Float",
             Value::String(_) => "String",
             Value::FnBuildin(_) => "Fn",
-            Value::StaticFunction(_) => "Fn",
+            Value::AstFunction(_) => "Fn",
         }
     }
 }
@@ -50,7 +51,7 @@ impl fmt::Display for Value {
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
             Value::FnBuildin(_) => Ok(()),
-            Value::StaticFunction(_) => Ok(()),
+            Value::AstFunction(_) => Ok(()),
         }
     }
 }
@@ -80,6 +81,12 @@ impl fmt::Display for Int {
             Uint16(v) => write!(f, "{v}"),
             Uint8(v) => write!(f, "{v}"),
         }
+    }
+}
+
+impl From<ast::Function<'static>> for Value {
+    fn from(value: ast::Function<'static>) -> Self {
+        Value::AstFunction(value)
     }
 }
 
