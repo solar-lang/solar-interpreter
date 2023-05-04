@@ -274,7 +274,7 @@ impl<'a> FileContext<'a> {
                 match symbol {
                     // Only evaluate functions directly
                     // otherwise return value
-                    Value::AstFunction(ref func) => self.eval_function(func, &args),
+                    Value::AstFunction(func) => self.eval_function(func, &args),
                     // if there are argument supplied to values,
                     // this is definitly and error.
                     v if !args.is_empty() => Err(EvalError::TypeError {
