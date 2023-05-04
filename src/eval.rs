@@ -13,15 +13,15 @@ pub struct InterpreterContext {
     pub stdin: Mutex<Box<dyn std::io::Read>>,
 }
 
-pub struct Context {
-    pub sources: HashMap<Vec<String>, Ast<'static>>,
+pub struct Context<'a> {
+    pub sources: HashMap<Vec<String>, Ast<'a>>,
     pub interpreter_ctx: InterpreterContext,
 }
 
-pub struct FileContext {
+pub struct FileContext<'a> {
     // Base identifier for this file.
     pub this: Vec<String>,
-    pub ctx: Context,
+    pub ctx: Context<'a>,
     // imports
     // pub imports: HashMap<String, Import>, // Symbols inside the file
     // global_scope: HashMap<String, Value>,
@@ -38,29 +38,33 @@ pub struct FileContext {
 // Symbol(Vec<String>),
 // }
 
-impl Deref for FileContext {
-    type Target = Context;
+impl<'a> Deref for FileContext<'a> {
+    type Target = Context<'a>;
     fn deref(&self) -> &Self::Target {
         &self.ctx
     }
 }
 
-impl FileContext {
+impl<'a> FileContext<'a> {
     /// Returns the AST of this file
-    fn ast(&self) -> &Ast<'static> {
+    fn ast(&self) -> &Ast<'a> {
         self.resolve_ast(&self.this)
             .expect("current AST to always be valid")
     }
 
-    fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'static>> {
+    fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'a>> {
         self.sources.get(path)
     }
 
+    /// Checks, whether supplied function call is a buildin function
+    /// buildin functions behave quite different from values in some respect,
+    /// which is fine. They will be hidden away in the stdlib.
+    /// Returns None, if the supplied function call does not address a buildin function.
     fn check_buildin_func(
-        &self,
+        &'a self,
         func: &ast::expr::FunctionCall,
-        args: &[Value],
-    ) -> Option<Result<Value, EvalError>> {
+        args: &[Value<'a>],
+    ) -> Option<Result<Value<'a>, EvalError>> {
         if func.function_name.value.len() != 1 {
             return None;
         }
@@ -120,7 +124,7 @@ impl FileContext {
         Ok(Value::Void)
     }
 
-    fn buildin_identity(&self, args: &[Value]) -> Result<Value, EvalError> {
+    fn buildin_identity(&'a self, args: &[Value<'a>]) -> Result<Value<'a>, EvalError> {
         // only the identiy overloading is implemented for now.
         if args.len() != 1 {
             panic!("& is only implemented with 1 argument");
@@ -184,7 +188,11 @@ impl FileContext {
         util::find_in_ast(ast, "main")
     }
 
-    pub fn eval_function(&self, func: &ast::Function, args: &[Value]) -> Result<Value, EvalError> {
+    pub fn eval_function(
+        &'a self,
+        func: &ast::Function,
+        args: &[Value<'a>],
+    ) -> Result<Value<'a>, EvalError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
@@ -196,9 +204,9 @@ impl FileContext {
     }
 
     pub fn eval_full_expression(
-        &self,
+        &'a self,
         expr: &FullExpression,
-        scope: &mut Scope,
+        scope: &mut Scope<'a>,
     ) -> Result<Value, EvalError> {
         match expr {
             FullExpression::Let(expr) => {
@@ -231,10 +239,10 @@ impl FileContext {
     }
 
     fn eval_minor_expr(
-        &self,
+        &'a self,
         expr: &ast::expr::Expression,
-        scope: &mut Scope,
-    ) -> Result<Value, EvalError> {
+        scope: &mut Scope<'a>,
+    ) -> Result<Value<'a>, EvalError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
                 // First, evaluate all arguments
@@ -281,9 +289,9 @@ impl FileContext {
     }
 
     fn eval_sub_expr(
-        &self,
+        &'a self,
         expr: &ast::expr::Value,
-        scope: &mut Scope,
+        scope: &mut Scope<'a>,
     ) -> Result<Value, EvalError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
@@ -363,11 +371,11 @@ impl FileContext {
     ///
     /// return candidates
     fn resolve_symbol(
-        &self,
+        &'a self,
         path: &[String],
         // TODO type of first argument is also relevant! Add as argument
-        scope: &Scope,
-    ) -> Result<Vec<Value>, EvalError> {
+        scope: &Scope<'a>,
+    ) -> Result<Vec<Value<'a>>, EvalError> {
         // TODO check if it was found before, and return compiled version
 
         // if the length of the path is > 1, it's guaranteed looking up an import.
@@ -381,11 +389,13 @@ impl FileContext {
             // The scope only holds arguments and let declarations.
             // Only one item will be returned by this.
             if let Some(item) = scope.get(name) {
+                // TODO this is the place where we can return references
+                // e.g. in order to assign to stuff.
                 return Ok(vec![item.clone()]);
             }
         }
 
-        let mut candidates: Vec<Value> = Vec::new();
+        let mut candidates: Vec<Value<'a>> = Vec::new();
         if let [name] = path {
             // if the path is only one element long,
             // we must also look up the local module.
@@ -400,7 +410,7 @@ impl FileContext {
             // if let Ok(found) = util::find_in_ast(&ast, name) {
             //     candidates.push(found);
             // }
-            candidates.push(Value::AstFunction(res.clone()));
+            candidates.push(Value::AstFunction(res));
         }
 
         Ok(candidates)
@@ -428,33 +438,33 @@ impl FileContext {
 #[derive(Debug, Clone, Default)]
 /// Logical Scope, optimized for small number of entries.
 /// Made so pushing and popping works fine.
-pub struct Scope {
-    values: Vec<(String, Value)>,
+pub struct Scope<'a> {
+    values: Vec<(String, Value<'a>)>,
 }
 
-impl Scope {
+impl<'a> Scope<'a> {
     pub fn new() -> Self {
         Scope::default()
     }
 
-    pub fn get(&self, name: &str) -> Option<&Value> {
+    pub fn get(&self, name: &str) -> Option<&Value<'a>> {
         self.values.iter().rfind(|(n, _)| n == name).map(|(_, v)| v)
     }
 
-    pub fn push(&mut self, name: &str, value: Value) {
+    pub fn push(&mut self, name: &str, value: Value<'a>) {
         self.values.push((name.to_string(), value));
     }
 
     /// Pops the most recent value out of the scope.
     /// Popping of an empty scope is considered a programming error
     /// and results in a panic.
-    pub fn pop(&mut self) -> Value {
+    pub fn pop(&mut self) -> Value<'a> {
         self.values.pop().expect("find value in local scope").1
     }
 }
 
 #[derive(Debug, Error)]
-enum EvalError {
+pub enum EvalError {
     IntConversion(#[from] std::num::ParseIntError),
     FindError(#[from] FindError),
     WrongBuildin { found: String },

@@ -6,21 +6,21 @@ use std::{
 
 pub type GcString = Rc<String>;
 
-type GenericFn = Rc<dyn Fn(&[Value]) -> Value>;
+type GenericFn<'a> = Rc<dyn Fn(&[Value<'a>]) -> Value<'a>>;
 
 /// Represents a Dynamically Typed Value
 #[derive(Clone)]
-pub enum Value {
+pub enum Value<'a> {
     Void,
     Bool(bool),
     Int(Int),
     Float(f64),
     String(GcString),
-    FnBuildin(GenericFn),
-    AstFunction(&'static ast::Function<'static>),
+    FnBuildin(GenericFn<'a>),
+    AstFunction(&'a ast::Function<'a>),
 }
 
-impl Value {
+impl Value<'_> {
     pub fn type_as_str(&self) -> &'static str {
         match self {
             Value::Void => "Void",
@@ -34,7 +34,7 @@ impl Value {
     }
 }
 
-impl Debug for Value {
+impl Debug for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ty = self.type_as_str();
 
@@ -42,7 +42,7 @@ impl Debug for Value {
     }
 }
 
-impl fmt::Display for Value {
+impl fmt::Display for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Void => write!(f, "void"),
@@ -84,31 +84,31 @@ impl fmt::Display for Int {
     }
 }
 
-impl From<&'static ast::Function<'static>> for Value {
-    fn from(value: &'static ast::Function<'static>) -> Self {
+impl<'a> From<&'a ast::Function<'a>> for Value<'a> {
+    fn from(value: &'a ast::Function<'a>) -> Self {
         Value::AstFunction(value)
     }
 }
 
-impl From<String> for Value {
+impl From<String> for Value<'_> {
     fn from(value: String) -> Self {
         Value::String(Rc::new(value))
     }
 }
 
-impl From<()> for Value {
+impl From<()> for Value<'_> {
     fn from(_: ()) -> Self {
         Value::Void
     }
 }
 
-impl From<bool> for Value {
+impl From<bool> for Value<'_> {
     fn from(value: bool) -> Self {
         Value::Bool(value)
     }
 }
 
-impl<T: 'static + Fn(&[Value]) -> Value> From<T> for Value {
+impl<'a, T: 'static + Fn(&[Value<'a>]) -> Value<'a>> From<T> for Value<'a> {
     fn from(value: T) -> Self {
         Value::FnBuildin(Rc::new(value))
     }

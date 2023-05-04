@@ -15,9 +15,8 @@ fn main() {
         .nth(1)
         .expect("find filename as first argument");
     let source_code = std::fs::read_to_string(path).expect("read input file");
-    let source_code = source_code.leak();
-    let ast: Ast<'static> = {
-        let (rest, ast) = Ast::parse_ws(source_code).expect("parse source code");
+    let ast = {
+        let (rest, ast) = Ast::parse_ws(&source_code).expect("parse source code");
         if !rest.trim_start().is_empty() {
             eprintln!("failed to parse source code. Error at: \n{rest}");
             std::process::exit(0);
