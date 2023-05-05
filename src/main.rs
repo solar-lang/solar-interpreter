@@ -1,5 +1,5 @@
-#![feature(string_leak)]
 mod eval;
+mod project;
 mod util;
 mod value;
 use eval::*;
@@ -9,38 +9,21 @@ use value::Value;
 use solar_parser::Ast;
 
 fn main() {
-    use solar_parser::Parse;
+    let cfg =
+        project::SolarConfig::read("solar.yaml").expect("read solar config in current directory");
 
-    let path = std::env::args()
-        .nth(1)
-        .expect("find filename as first argument");
-    let source_code = std::fs::read_to_string(path).expect("read input file");
-    let ast = {
-        let (rest, ast) = Ast::parse_ws(&source_code).expect("parse source code");
-        if !rest.trim_start().is_empty() {
-            eprintln!("failed to parse source code. Error at: \n{rest}");
-            std::process::exit(0);
-        }
+    let basepath = cfg.basepath();
 
-        ast
-    };
-
-    let ctx = Context {
-        sources: [(Vec::new(), ast)].into_iter().collect(),
-        interpreter_ctx: InterpreterContext {
-            stdout: Mutex::new(Box::new(std::io::stdout())),
-            stdin: Mutex::new(Box::new(std::io::stdin())),
-        },
-    };
-
-    let ctx = FileContext {
-        this: vec![],
-        ctx,
-        // imports: HashMap::new(),
-    };
-
-    // Find main function
-    let f_main = ctx.find_main().expect("find main function");
-
-    ctx.eval_function(f_main, &[]).expect("run main function");
+    // read all .sol files in ./ as root
+    // collect them as
+    // modules := {}
+    // deps := cfg.deps() # map. e.g. "std" => [std(solar-lang), 0.0.1]
+    // foreach _file, path, fullpath of ./**/*.sol:
+    //    modulepath := path.split("/")
+    //    module := basepath ++ modulepath
+    //    if module not in modules:
+    //        modules[module] = []
+    //
+    //    # deps are needed here, to know which VERSION the deps in this file are supposed to resolve to
+    //    modules[module].append(FileContext::from_file(module, file=fullpath, deps=deps))
 }

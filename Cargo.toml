@@ -9,3 +9,12 @@ edition = "2021"
 solar-parser = { path="../parser"}
 thiserror = "1.0.40"
 
+# A generic serialization/deserialization framework
+serde = { version="1.0.162", features=['derive'] }
+
+# YAML data format for Serde
+serde_yaml = "0.9.21"
+
+# Flexible concrete Error type built on std::error::Error
+anyhow = "1.0.71"
+
