@@ -13,6 +13,7 @@ fn main() {
         project::SolarConfig::read("solar.yaml").expect("read solar config in current directory");
 
     let basepath = cfg.basepath();
+    dbg!(basepath);
 
     // read all .sol files in ./ as root
     // collect them as
