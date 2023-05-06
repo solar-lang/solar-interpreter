@@ -22,3 +22,6 @@ anyhow = "1.0.71"
 # Recursively walk a directory.
 walkdir = "2.3.3"
 
+# Collection Data-structure to associate values with keys
+hotel = "1.0.1"
+
