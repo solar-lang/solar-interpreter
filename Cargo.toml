@@ -18,3 +18,7 @@ serde_yaml = "0.9.21"
 # Flexible concrete Error type built on std::error::Error
 anyhow = "1.0.71"
 
+# TODO use async-walkdir
+# Recursively walk a directory.
+walkdir = "2.3.3"
+
