@@ -1,3 +1,8 @@
+mod libraries;
+mod modules;
+pub use libraries::*;
+pub use modules::*;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -23,7 +28,7 @@ impl SolarConfig {
         Ok(cfg)
     }
 
-    pub fn basepath(&self) -> Vec<String> {
+    pub fn basepath(&self) -> IdPath {
         let publisher = if let Some(p) = &self.publisher { p } else { "" };
 
         vec![
@@ -67,7 +72,7 @@ pub struct Dependency {
 }
 
 impl Dependency {
-    pub fn basepath(&self) -> Vec<String> {
+    pub fn basepath(&self) -> IdPath {
         let name = &self.name;
         let publisher = &self.publisher;
         let version = &self.version;
@@ -75,6 +80,7 @@ impl Dependency {
         vec![format!("{name}({publisher})"), version.to_owned()]
     }
 
+    /// Gives the directory of the library within the local filesystem.
     pub fn dir(&self) -> String {
         let mut solar_path = std::env::var("SOLAR_PATH").unwrap_or("~/.solar/".to_string());
         if !solar_path.ends_with('/') {

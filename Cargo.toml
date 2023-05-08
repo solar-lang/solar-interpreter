@@ -23,5 +23,5 @@ anyhow = "1.0.71"
 walkdir = "2.3.3"
 
 # Collection Data-structure to associate values with keys
-hotel = "1.0.1"
+hotel = "1.0.2"
 

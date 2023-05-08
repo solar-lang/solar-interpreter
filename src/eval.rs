@@ -13,7 +13,7 @@ pub struct InterpreterContext {
     pub stdin: Mutex<Box<dyn std::io::Read>>,
 }
 
-pub struct Context<'a> {
+pub struct CompilerContext<'a> {
     pub sources: HashMap<Vec<String>, Ast<'a>>,
     pub interpreter_ctx: InterpreterContext,
 }
@@ -21,7 +21,7 @@ pub struct Context<'a> {
 pub struct FileContext<'a> {
     // Base identifier for this file.
     pub this: Vec<String>,
-    pub ctx: Context<'a>,
+    pub ctx: CompilerContext<'a>,
     // imports
     // pub imports: HashMap<String, Import>, // Symbols inside the file
     // global_scope: HashMap<String, Value>,
@@ -39,7 +39,7 @@ pub struct FileContext<'a> {
 // }
 
 impl<'a> Deref for FileContext<'a> {
-    type Target = Context<'a>;
+    type Target = CompilerContext<'a>;
     fn deref(&self) -> &Self::Target {
         &self.ctx
     }
