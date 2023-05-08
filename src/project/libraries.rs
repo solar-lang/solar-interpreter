@@ -89,8 +89,17 @@ impl Project {
             let relativepath = path
                 .strip_prefix(&self.fsroot)
                 .expect("to strip common prefix of filepath");
-            let relativepath = relativepath.iter().collect::<Vec<_>>();
-            dbg!(relativepath);
+            let absolutepath = self
+                .basepath
+                .iter()
+                .map(|f| f as &str)
+                .chain(
+                    relativepath
+                        .iter()
+                        .map(|f| f.to_str().expect("receive str from OsString")),
+                )
+                .collect::<Vec<_>>();
+            dbg!(absolutepath);
         }
 
         map

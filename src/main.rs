@@ -33,6 +33,7 @@ fn main() {
     insert_all(p, &mut projects);
 
     for (project_id, p) in projects.iter_values() {
+        dbg!(&p);
         p.read_all(project_id);
     }
 
