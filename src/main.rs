@@ -19,7 +19,7 @@ fn main() {
             let path = dep.basepath();
             // skip project, if we have already read it.
             if projects.contains(&path) {
-                contiue;
+                continue;
             }
 
             let dir = dep.dir();
