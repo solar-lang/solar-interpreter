@@ -1,19 +1,16 @@
+#![feature(string_leak)]
 mod eval;
 mod project;
 mod util;
 mod value;
 use hotel::HotelMap;
-use project::{IdPath, Project};
+use project::Project;
 use value::Value;
-
-fn target_id() -> IdPath {
-    vec!["self".to_string()]
-}
 
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
     let mut projects = HotelMap::new();
-    let p = Project::open(&fsroot, target_id());
+    let p = Project::open(&fsroot, util::target_id());
     fn insert_all(p: Project, projects: &mut HotelMap<Vec<String>, Project>) {
         for dep in p.config.deps() {
             let path = dep.basepath();

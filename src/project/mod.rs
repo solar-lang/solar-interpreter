@@ -3,6 +3,7 @@ mod modules;
 pub use libraries::*;
 pub use modules::*;
 
+use crate::util::IdPath;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

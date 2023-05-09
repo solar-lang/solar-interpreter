@@ -1,6 +1,17 @@
 use solar_parser::{ast, ast::identifier::IdentifierPath, Ast};
 use thiserror::Error;
 
+/// Denotes an global identifier used to resolve
+/// modules and symbols across libraries and versions of libraries.
+pub type IdPath = Vec<String>;
+
+/// The IdPath (that is, the common prefix)
+/// of all symbols inside the current project
+/// (e.g. the one with "./solar.yaml")
+pub fn target_id() -> IdPath {
+    vec!["self".to_string()]
+}
+
 pub(crate) fn normalize_path(path: &IdentifierPath) -> Vec<String> {
     // TODO find path[0] in imports
     // and append this import to the start

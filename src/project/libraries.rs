@@ -2,11 +2,10 @@ use super::Module;
 /// This file contains code
 /// for reading in dependencies and libraries.
 /// and resolving their imports.
-use crate::project::SolarConfig;
+use crate::project::{FileInfo, SolarConfig};
+use crate::util::IdPath;
 use std::collections::HashMap;
 use walkdir::WalkDir;
-
-pub type IdPath = Vec<String>;
 
 /// Contains information on a project,
 /// and how to resolve imports inside a project.
@@ -94,16 +93,33 @@ impl Project {
             let idpath = self
                 .basepath
                 .iter()
-                .map(|f| f as &str)
+                .cloned()
                 .chain(
                     idpath
                         .iter()
-                        .map(|f| f.to_str().expect("receive str from OsString")),
+                        .map(|f| f.to_str().expect("receive str from OsString").to_string()),
                 )
                 .collect::<Vec<_>>();
 
-            map.entry(&idpath).or_insert(Module::new(project_id))
-            dbg!(idpath);
+            map.entry(idpath).or_insert(Module::new(project_id));
+
+            // read in source code of file.
+            // and leak the memory.
+            // NOTE: for now we just keep all the sourcefiles in memory.
+            // maybe later we will do the opposite and never keep them in memory, but instead read them when needed only.
+            // This requires changes to the AST Nodes. All have a span: &str.
+            // We'd prefer to have a token_start: u32 on over node. (We don't REALLY need token_end)
+            // and remember for each Ast the file name.
+            let mut source_code = std::fs::read_to_string(path).expect("read solar file");
+            source_code.shrink_to_fit();
+            let content = source_code.leak();
+
+            let fileinfo = FileInfo::from_code(
+                path.to_str().expect("read filename").to_string(),
+                &self.dep_map,
+                &self.basepath,
+                content,
+            );
         }
 
         map
