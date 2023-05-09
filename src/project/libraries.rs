@@ -86,20 +86,24 @@ impl Project {
             let path = entry.path();
             // We need to strip the path,
             // because we don't care about the root file system
-            let relativepath = path
+            let idpath = path
                 .strip_prefix(&self.fsroot)
                 .expect("to strip common prefix of filepath");
-            let absolutepath = self
+
+            // absolute id path.
+            let idpath = self
                 .basepath
                 .iter()
                 .map(|f| f as &str)
                 .chain(
-                    relativepath
+                    idpath
                         .iter()
                         .map(|f| f.to_str().expect("receive str from OsString")),
                 )
                 .collect::<Vec<_>>();
-            dbg!(absolutepath);
+
+            map.entry(&idpath).or_insert(Module::new(project_id))
+            dbg!(idpath);
         }
 
         map
