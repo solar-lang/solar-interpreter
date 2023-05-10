@@ -3,15 +3,17 @@ mod eval;
 mod project;
 mod util;
 mod value;
+use anyhow::Result;
 use hotel::HotelMap;
 use project::Project;
+use util::IdPath;
 use value::Value;
 
-fn main() {
-    let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
+fn read_all_projects(fsroot: &str) -> Result<HotelMap<IdPath, Project>> {
     let mut projects = HotelMap::new();
-    let p = Project::open(&fsroot, util::target_id());
-    fn insert_all(p: Project, projects: &mut HotelMap<Vec<String>, Project>) {
+    let p = Project::open(fsroot, util::target_id())?;
+
+    fn insert_all(p: Project, projects: &mut HotelMap<Vec<String>, Project>) -> Result<()> {
         for dep in p.config.deps() {
             let path = dep.basepath();
             // skip project, if we have already read it.
@@ -20,14 +22,23 @@ fn main() {
             }
 
             let dir = dep.dir();
-            let p = Project::open(&dir, path);
-            insert_all(p, projects);
+            let p = Project::open(&dir, path)?;
+            insert_all(p, projects)?;
         }
 
         projects.insert(p.basepath.clone(), p);
+
+        Ok(())
     }
 
-    insert_all(p, &mut projects);
+    insert_all(p, &mut projects)?;
+
+    Ok(projects)
+}
+
+fn main() {
+    let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
+    let projects = read_all_projects(&fsroot).expect("read in solar project and dependencies");
 
     for (project_id, p) in projects.iter_values() {
         dbg!(&p);

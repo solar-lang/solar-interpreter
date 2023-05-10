@@ -25,6 +25,7 @@ pub struct Project {
 }
 
 impl Project {
+    /// Reads in the .solar file of a project with root `fsroot`.
     pub fn open(
         // The root is the root of the project
         // in the filetree
@@ -32,14 +33,11 @@ impl Project {
         // the basepath is the unique identifier for this project.
         // For libraries it is supposed to match the root.
         basepath: IdPath,
-    ) -> Project {
+    ) -> anyhow::Result<Project> {
         let solarfile = format!("{fsroot}/solar.yaml");
 
         // solar config file of the project
-        let Ok(config) = SolarConfig::read(&solarfile) else {
-        panic!("expected to find solar config in {solarfile}")
-    };
-
+        let config = SolarConfig::read(&solarfile)?;
         let fsroot = fsroot.to_string();
 
         let dep_map = config
@@ -52,12 +50,12 @@ impl Project {
             })
             .collect();
 
-        Project {
+        Ok(Project {
             basepath,
             fsroot,
             dep_map,
             config,
-        }
+        })
     }
 
     /// Reads and parses
