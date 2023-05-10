@@ -83,8 +83,10 @@ impl<'a> FileInfo<'a> {
         basepath: &IdPath,
         content: &'a str,
     ) -> Result<Self, ResolveError<'a>> {
-        // read in AST from file.
+        // read in file and parse AST.
         let ast = Ast::from_source_code(content)?;
+
+        // build up lookup table to resolve imported symbols.
         let imports = resolve_imports(&ast, depmap, basepath)?;
 
         Ok(FileInfo {
@@ -113,9 +115,12 @@ fn resolve_imports<'a>(
             // get the name of the library
             let lib = import.path[0].value;
             // resolve correct version from library
-            let Some(lib_path) = depmap.get(lib) else {
-        return Err(ResolveError::LibNotInDeps { libname: lib.to_string() });
-    };
+            let lib_path = depmap
+                .get(lib)
+                // if we can't find the symbol inside the dependencies, it's an error
+                .ok_or_else(|| ResolveError::LibNotInDeps {
+                    libname: lib.to_string(),
+                })?;
 
             // append rest of the import path to the absolute path we just created
             let mut path = lib_path.clone();
