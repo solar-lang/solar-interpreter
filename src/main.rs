@@ -3,6 +3,8 @@ mod eval;
 mod project;
 mod util;
 mod value;
+use std::collections::HashMap;
+
 use anyhow::Result;
 use hotel::HotelMap;
 use project::Project;
@@ -40,10 +42,17 @@ fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
     let projects = read_all_projects(&fsroot).expect("read in solar project and dependencies");
 
+    let mut global_symbol_table = HashMap::new();
+
     for (project_id, p) in projects.iter_values() {
         dbg!(&p);
-        p.read_all(project_id);
+        let symbol_table = p.read_all(project_id);
+        for (sym, path) in symbol_table.into_iter() {
+            global_symbol_table.insert(sym, path);
+        }
     }
+
+    dbg!(global_symbol_table);
 
     // read all .sol files in ./ as root
     // collect them as

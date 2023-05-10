@@ -1,12 +1,13 @@
 use crate::util::IdPath;
 use anyhow::Result;
 use solar_parser::ast::import::Selection;
-use solar_parser::Ast;
+use solar_parser::{ast, Ast};
 use std::collections::HashMap;
 use thiserror::Error;
 
 pub type SymbolResolver = HashMap<String, Vec<IdPath>>;
 
+#[derive(Debug)]
 pub struct Module<'a> {
     // NOTE u32 might be better
     pub project_id: usize,
@@ -31,6 +32,7 @@ impl<'a> Module<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct FileInfo<'a> {
     // NOTE this might be redundant
     pub filename: String,
@@ -53,7 +55,13 @@ pub enum ResolveError<'a> {
         // but how?
         libname: String,
     },
-    ParseErr(solar_parser::ast::NomErr<'a>),
+    ParseErr(ast::NomErr<'a>),
+}
+
+impl<'a> From<ast::NomErr<'a>> for ResolveError<'a> {
+    fn from(value: ast::NomErr<'a>) -> Self {
+        ResolveError::ParseErr(value)
+    }
 }
 
 impl std::fmt::Display for ResolveError<'_> {
@@ -75,11 +83,8 @@ impl<'a> FileInfo<'a> {
         basepath: &IdPath,
         content: &'a str,
     ) -> Result<Self, ResolveError<'a>> {
-        let r = Ast::from_source_code(content);
-        let Ok(ast) = r else {
-            let e = r.err().unwrap();
-            return Err(ResolveError::ParseErr(e));
-        };
+        // read in AST from file.
+        let ast = Ast::from_source_code(content)?;
         let imports = resolve_imports(&ast, depmap, basepath)?;
 
         Ok(FileInfo {
@@ -93,8 +98,8 @@ impl<'a> FileInfo<'a> {
 /// Resolve all imports from the ast to their global symbols for later lookup.
 fn resolve_imports<'a>(
     ast: &Ast<'a>,
-    depmap: &HashMap<String, Vec<String>>,
-    basepath: &Vec<String>,
+    depmap: &HashMap<String, IdPath>,
+    basepath: &IdPath,
 ) -> Result<SymbolResolver, ResolveError<'a>> {
     let mut imports = HashMap::new();
 
