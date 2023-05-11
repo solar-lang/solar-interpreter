@@ -46,7 +46,8 @@ fn main() {
 
     for (project_id, p) in projects.iter_values() {
         dbg!(&p);
-        let symbol_table = p.read_all(project_id);
+        let symbol_table =
+            dbg!(p.read_all(project_id)).expect("read and parse all files in project");
         for (sym, path) in symbol_table.into_iter() {
             global_symbol_table.insert(sym, path);
         }

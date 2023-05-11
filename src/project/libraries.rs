@@ -62,7 +62,7 @@ impl Project {
     /// all solarfiles out of all modules
     /// into memory.
     /// the project id is supposed to be a reference to this exact [Project]
-    pub fn read_all(&self, project_id: usize) -> HashMap<IdPath, Module> {
+    pub fn read_all(&self, project_id: usize) -> anyhow::Result<HashMap<IdPath, Module>> {
         let mut map = HashMap::new();
 
         for entry in WalkDir::new(&self.fsroot) {
@@ -99,8 +99,6 @@ impl Project {
                 )
                 .collect::<Vec<_>>();
 
-            map.entry(idpath).or_insert(Module::new(project_id));
-
             // read in source code of file.
             // and leak the memory.
             // NOTE: for now we just keep all the sourcefiles in memory.
@@ -117,9 +115,13 @@ impl Project {
                 &self.dep_map,
                 &self.basepath,
                 content,
-            );
+            )?;
+
+            map.entry(idpath)
+                .or_insert(Module::new(project_id))
+                .add_file(fileinfo);
         }
 
-        map
+        Ok(map)
     }
 }
