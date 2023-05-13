@@ -6,16 +6,21 @@ mod value;
 use std::collections::HashMap;
 
 use anyhow::Result;
+use eval::CompilerContext;
 use hotel::HotelMap;
-use project::Project;
+use project::{Module, Project};
 use util::IdPath;
 use value::Value;
 
-fn read_all_projects(fsroot: &str) -> Result<HotelMap<IdPath, Project>> {
+pub type ProjectInfo = HotelMap<IdPath, Project>;
+
+pub type GlobalModules<'a> = HashMap<IdPath, Module<'a>>;
+
+fn read_all_projects(fsroot: &str) -> Result<ProjectInfo> {
     let mut projects = HotelMap::new();
     let p = Project::open(fsroot, util::target_id())?;
 
-    fn insert_all(p: Project, projects: &mut HotelMap<Vec<String>, Project>) -> Result<()> {
+    fn insert_all(p: Project, projects: &mut HotelMap<IdPath, Project>) -> Result<()> {
         for dep in p.config.deps() {
             let path = dep.basepath();
             // skip project, if we have already read it.
@@ -38,33 +43,30 @@ fn read_all_projects(fsroot: &str) -> Result<HotelMap<IdPath, Project>> {
     Ok(projects)
 }
 
-fn main() {
-    let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
-    let projects = read_all_projects(&fsroot).expect("read in solar project and dependencies");
+/// create global mapping of ModulePaths to Modules
+/// i.e. across all dependencies and sub-dependencies
+fn read_modules(projects: &ProjectInfo) -> anyhow::Result<GlobalModules> {
+    let mut modules = HashMap::new();
 
-    let mut global_symbol_table = HashMap::new();
+    for (project_id, project) in projects.iter_values() {
+        let symbol_table = project.read_all(project_id)?;
 
-    for (project_id, p) in projects.iter_values() {
-        dbg!(&p);
-        let symbol_table =
-            dbg!(p.read_all(project_id)).expect("read and parse all files in project");
         for (sym, path) in symbol_table.into_iter() {
-            global_symbol_table.insert(sym, path);
+            symbol_table.insert(sym, path);
         }
     }
 
-    dbg!(global_symbol_table);
+    Ok(modules)
+}
 
-    // read all .sol files in ./ as root
-    // collect them as
-    // modules := {}
-    // deps := cfg.deps() # map. e.g. "std" => [std(solar-lang), 0.0.1]
-    // foreach _file, path, fullpath of ./**/*.sol:
-    //    modulepath := path.split("/")
-    //    module := basepath ++ modulepath
-    //    if module not in modules:
-    //        modules[module] = []
-    //
-    //    # deps are needed here, to know which VERSION the deps in this file are supposed to resolve to
-    //    modules[module].append(FileContext::from_file(module, file=fullpath, deps=deps))
+fn main() {
+    let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
+    let project_info = read_all_projects(&fsroot).expect("read in solar project and dependencies");
+    let modules = read_modules(&project_info).expect("open and parse solar files");
+
+    let ctx = CompilerContext {
+        modules,
+        project_info,
+        interpreter_ctx: eval::InterpreterContext::new(),
+    };
 }

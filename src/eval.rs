@@ -1,7 +1,9 @@
-use crate::util;
 use crate::util::FindError;
-use crate::Value;
+use crate::util::{self, IdPath};
+use crate::{GlobalModules, ProjectInfo, Value};
+use hotel::HotelMap;
 use std::collections::HashMap;
+use std::io;
 use std::ops::Deref;
 use std::sync::Mutex;
 use thiserror::Error;
@@ -13,8 +15,21 @@ pub struct InterpreterContext {
     pub stdin: Mutex<Box<dyn std::io::Read>>,
 }
 
+impl InterpreterContext {
+    pub fn new() -> Self {
+        let stdin = io::stdin();
+        let stdout = io::stdout();
+        Self {
+            stdin: Mutex::new(Box::new(stdin)),
+            stdout: Mutex::new(Box::new(stdout)),
+        }
+    }
+}
+
 pub struct CompilerContext<'a> {
-    pub sources: HashMap<Vec<String>, Ast<'a>>,
+    pub project_info: ProjectInfo,
+    pub modules: GlobalModules<'a>,
+    // pub sources: HashMap<IdPath, Ast<'a>>,
     pub interpreter_ctx: InterpreterContext,
 }
 

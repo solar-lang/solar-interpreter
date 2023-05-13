@@ -59,9 +59,11 @@ impl Project {
     }
 
     /// Reads and parses
-    /// all solarfiles out of all modules
+    /// all solarfiles, organized into modules,
     /// into memory.
-    /// the project id is supposed to be a reference to this exact [Project]
+    /// the project id is supposed to be a reference to this exact [Project].
+    ///
+    /// Returns a Mapping of  {ModulePath => Module}
     pub fn read_all(&self, project_id: usize) -> anyhow::Result<HashMap<IdPath, Module>> {
         let mut map = HashMap::new();
 
