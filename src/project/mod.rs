@@ -1,7 +1,9 @@
 mod libraries;
 mod modules;
+mod project;
 pub use libraries::*;
 pub use modules::*;
+pub use project::*;
 
 use crate::util::IdPath;
 use serde::{Deserialize, Serialize};
