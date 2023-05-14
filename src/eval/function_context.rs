@@ -16,7 +16,7 @@ pub struct FunctionContext<'a> {
 
 impl<'a> FunctionContext<'a> {
     /// Evaluate a function,
-    pub fn eval(&self, args: &[Value<'a>]) -> Result<Value, EvalError> {
+    pub fn eval(&'a self, args: &[Value<'a>]) -> Result<Value<'a>, EvalError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
@@ -98,7 +98,10 @@ impl<'a> FunctionContext<'a> {
                 match symbol {
                     // Only evaluate functions directly
                     // otherwise return value
-                    Value::Function(func) => func.ctx(&self.ctx).eval(&args),
+                    Value::Function(func) => {
+                        let ctx = func.ctx(&self.ctx);
+                        ctx.eval(&args)
+                    }
                     // if there are argument supplied to values,
                     // this is definitly and error.
                     v if !args.is_empty() => Err(EvalError::TypeError {

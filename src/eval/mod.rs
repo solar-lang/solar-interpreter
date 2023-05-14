@@ -37,7 +37,7 @@ impl<'a> CompilerContext<'a> {
     }
 
     /// Finds the main function of the current target project
-    pub fn find_target_main(&self) -> Result<FunctionInfo<'a>, FindError> {
+    pub fn find_target_main(&'a self) -> Result<FunctionInfo<'a>, FindError> {
         let path = util::target_id();
         let module = self.module_info.get(&path).unwrap();
 

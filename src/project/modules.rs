@@ -31,10 +31,11 @@ impl<'a> Module<'a> {
         self.files.push(file);
     }
 
-    pub fn find(&self, symbol: &str) -> Result<Vec<FunctionInfo<'a>>, FindError> {
-        let v = Vec::new();
+    pub fn find(&'a self, symbol: &str) -> Result<Vec<FunctionInfo<'a>>, FindError> {
+        let mut v = Vec::new();
+
         for fileinfo in &self.files {
-            let ast = fileinfo.ast;
+            let ast = &fileinfo.ast;
             for i in &ast.items {
                 match i {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
@@ -57,10 +58,10 @@ impl<'a> Module<'a> {
         }
 
         if v.is_empty() {
-            Err(FindError::NotFound(symbol.to_string()))
-        } else {
-            Ok(v)
+            return Err(FindError::NotFound(symbol.to_string()));
         }
+
+        Ok(v)
     }
 }
 
