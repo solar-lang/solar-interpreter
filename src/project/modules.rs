@@ -52,7 +52,7 @@ pub struct FileInfo<'a> {
 pub enum ResolveError<'a> {
     LibNotInDeps {
         // TODO include location...
-        // but how?
+        // but how do I want to do it project wide?
         libname: String,
     },
     ParseErr(ast::NomErr<'a>),

@@ -1,8 +1,7 @@
+use crate::project::Module;
 use crate::util::FindError;
 use crate::util::{self, IdPath};
 use crate::{GlobalModules, ProjectInfo, Value};
-use hotel::HotelMap;
-use std::collections::HashMap;
 use std::io;
 use std::ops::Deref;
 use std::sync::Mutex;
@@ -11,12 +10,12 @@ use thiserror::Error;
 use solar_parser::{ast, ast::expr::FullExpression, Ast};
 
 pub struct InterpreterContext {
-    pub stdout: Mutex<Box<dyn std::io::Write>>,
-    pub stdin: Mutex<Box<dyn std::io::Read>>,
+    pub stdout: Mutex<Box<dyn io::Write>>,
+    pub stdin: Mutex<Box<dyn io::Read>>,
 }
 
-impl InterpreterContext {
-    pub fn new() -> Self {
+impl std::default::Default for InterpreterContext {
+    fn default() -> Self {
         let stdin = io::stdin();
         let stdout = io::stdout();
         Self {
@@ -33,13 +32,51 @@ pub struct CompilerContext<'a> {
     pub interpreter_ctx: InterpreterContext,
 }
 
+impl<'a> CompilerContext<'a> {
+    /// Creates a new Compiler Context with stdin and stdout
+    /// propagated
+    pub fn with_default_io(project_info: ProjectInfo, modules: GlobalModules<'a>) -> Self {
+        CompilerContext {
+            project_info,
+            modules,
+            interpreter_ctx: InterpreterContext::default(),
+        }
+    }
+
+    /// Utility method to attach different standard input
+    pub fn with_stdin(self, stdin: impl io::Read) -> Self {
+        Self {
+            interpreter_ctx: InterpreterContext {
+                stdin: Mutex::new(Box::new(stdin)),
+                ..self.interpreter_ctx
+            },
+            ..self
+        }
+    }
+
+    /// Utility method to attach different standard output
+    pub fn with_stdout(self, stdout: impl io::Write) -> Self {
+        Self {
+            interpreter_ctx: InterpreterContext {
+                stdout: Mutex::new(Box::new(stdout)),
+                ..self.interpreter_ctx
+            },
+            ..self
+        }
+    }
+
+    /// Resolve module based on idpath
+    fn resolve_module(&self, idpath: &[String]) -> Option<&Module<'a>> {
+        self.modules.get(idpath)
+    }
+}
+
 pub struct FileContext<'a> {
     // Base identifier for this file.
+    // TODO needs to be per module.
     pub this: Vec<String>,
+    pub ast: Ast<'a>,
     pub ctx: CompilerContext<'a>,
-    // imports
-    // pub imports: HashMap<String, Import>, // Symbols inside the file
-    // global_scope: HashMap<String, Value>,
 }
 
 // pub enum Import {
@@ -61,16 +98,6 @@ impl<'a> Deref for FileContext<'a> {
 }
 
 impl<'a> FileContext<'a> {
-    /// Returns the AST of this file
-    fn ast(&self) -> &Ast<'a> {
-        self.resolve_ast(&self.this)
-            .expect("current AST to always be valid")
-    }
-
-    fn resolve_ast(&self, path: &[String]) -> Option<&Ast<'a>> {
-        self.sources.get(path)
-    }
-
     /// Checks, whether supplied function call is a buildin function
     /// buildin functions behave quite different from values in some respect,
     /// which is fine. They will be hidden away in the stdlib.
@@ -419,7 +446,7 @@ impl<'a> FileContext<'a> {
 
             // TODO ALSO CHECK ALL OTHER ASTS IN CURRENT MODULE!
             // e.g. self.asts_in_module()
-            let ast = self.ast();
+            let ast = self.ast;
 
             let res = util::find_in_ast(&ast, name)?;
             // if let Ok(found) = util::find_in_ast(&ast, name) {

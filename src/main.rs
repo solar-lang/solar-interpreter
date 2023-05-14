@@ -14,6 +14,8 @@ use value::Value;
 
 pub type ProjectInfo = HotelMap<IdPath, Project>;
 
+/// Mapping from IdPaths/ModulePaths (use @std.0.1.0.types.string.String) to all modules.
+/// ASTs can be found inside the modules.
 pub type GlobalModules<'a> = HashMap<IdPath, Module<'a>>;
 
 fn read_all_projects(fsroot: &str) -> Result<ProjectInfo> {
@@ -64,9 +66,5 @@ fn main() {
     let project_info = read_all_projects(&fsroot).expect("read in solar project and dependencies");
     let modules = read_modules(&project_info).expect("open and parse solar files");
 
-    let ctx = CompilerContext {
-        modules,
-        project_info,
-        interpreter_ctx: eval::InterpreterContext::new(),
-    };
+    let ctx = CompilerContext::with_default_io(project_info, modules);
 }
