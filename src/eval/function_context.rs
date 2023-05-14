@@ -1,50 +1,30 @@
 use solar_parser::ast::{self, expr::FullExpression};
 
 use crate::{
-    project::{FileInfo, Module},
-    util,
+    project::{FunctionInfo, SymbolResolver},
+    util::{self, Scope},
     value::Value,
 };
 
-use super::EvalError;
+use super::{CompilerContext, EvalError};
 
-/// Context containing all needed information
-/// for evalutating a specific function
-pub struct FunctionContext<'a> {
-    /// Information about the file,
-    /// such as the ast, filename, and
-    /// the import table.
-    info: &'a FileInfo<'a>,
-
-    /// info about the module this file can be found in.
-    module: &'a Module<'a>,
-
-    /// AST of the function
-    func: &'a ast::Function<'a>,
+/// Contains all information needed to evaluate a function.
+pub struct FunctionContxt<'a> {
+    info: FunctionInfo<'a>,
+    ctx: CompilerContext<'a>,
 }
 
-impl<'a> FunctionContext<'a> {
-    pub fn new(
-        info: &'a FileInfo<'a>,
-        module: &'a Module<'a>,
-        func: &'a ast::Function<'a>,
-    ) -> Self {
-        Self { info, module, func }
-    }
-
-    pub fn eval_function(
-        &'a self,
-        func: &ast::Function,
-        args: &[Value<'a>],
-    ) -> Result<Value<'a>, EvalError> {
+impl<'a> FunctionContxt<'a> {
+    /// Evaluate a function,
+    pub fn eval(&self, args: &[Value<'a>]) -> Result<Value, EvalError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
-        for ((ident, _ty), val) in func.args.iter().zip(args) {
+        for ((ident, _ty), val) in self.info.ast.args.iter().zip(args) {
             scope.push(ident.value, val.clone());
         }
 
-        self.eval_full_expression(&func.body, &mut scope)
+        self.eval_full_expression(&self.info.ast.body, &mut scope)
     }
 
     pub fn eval_full_expression(
@@ -118,7 +98,7 @@ impl<'a> FunctionContext<'a> {
                 match symbol {
                     // Only evaluate functions directly
                     // otherwise return value
-                    Value::AstFunction(func) => self.eval_function(func, &args),
+                    Value::Function(func) => self.eval_function(func, &args),
                     // if there are argument supplied to values,
                     // this is definitly and error.
                     v if !args.is_empty() => Err(EvalError::TypeError {
@@ -244,21 +224,16 @@ impl<'a> FunctionContext<'a> {
             // if the path is only one element long,
             // we must also look up the local module.
             // that is ALL Asts within this module.
-            // TODO requires imports/modules
 
-            // TODO ALSO CHECK ALL OTHER ASTS IN CURRENT MODULE!
-            // module.find(name)
-            // e.g. self.asts_in_module()
-            let ast = self.ast;
+            let res = self.info.module.find(name);
 
-            let res = util::find_in_module(&ast, name)?;
             // if let Ok(found) = util::find_in_ast(&ast, name) {
             //     candidates.push(found);
             // }
-            candidates.push(Value::AstFunction(res));
+            for c in res {
+                candidates.push(Value::Function(c));
+            }
         }
-
-        Ok(candidates)
 
         // 2.) see, if the element is from an import
         // Note, this might result in a number of candidates to check!
@@ -274,36 +249,43 @@ impl<'a> FunctionContext<'a> {
         //
         // return candidates
 
-        // TODO how to represent the symbols available from a file?
-        // TODO make value represent Functions.
-        // unimplemented!("resolve imports and scope. Not found {path:?}")
+        let symbol = &path[0];
+        if let Some(imports) = self.imports().get(symbol) {
+            for path in imports {
+                let mut basepath = path.to_vec();
+
+                // TODO if path[1..].len() > 1, then imports should be length 1.
+                // because it means we are importing an entire module, and we shouldn't import multiple modules
+                // with the same name, I think.
+                basepath.extend(&path[1..]);
+
+                // now basepath contains the full path id!
+                // neat :)
+
+                let idpath = &basepath[..(basepath.len() - 1)];
+                let symbol = &basepath.last().expect("find element in path");
+
+                let Ok(module) = self.ctx.resolve_module(idpath) else {
+                    eprintln!("skipping over module {idpath}");
+                    continue;
+                };
+
+                // candidates from this module
+                let Ok(cs) = module.find(symbol) else {
+                    eprintln!("haven't found {symbol} in {idpath}");
+                    continue;
+                };
+
+                for c in cs {
+                    candidates.push(Value::Function(c));
+                }
+            }
+        }
+
+        Ok(candidates)
     }
-}
 
-#[derive(Debug, Clone, Default)]
-/// Logical Scope, optimized for small number of entries.
-/// Made so pushing and popping works fine.
-pub struct Scope<'a> {
-    values: Vec<(String, Value<'a>)>,
-}
-
-impl<'a> Scope<'a> {
-    pub fn new() -> Self {
-        Scope::default()
-    }
-
-    pub fn get(&self, name: &str) -> Option<&Value<'a>> {
-        self.values.iter().rfind(|(n, _)| n == name).map(|(_, v)| v)
-    }
-
-    pub fn push(&mut self, name: &str, value: Value<'a>) {
-        self.values.push((name.to_string(), value));
-    }
-
-    /// Pops the most recent value out of the scope.
-    /// Popping of an empty scope is considered a programming error
-    /// and results in a panic.
-    pub fn pop(&mut self) -> Value<'a> {
-        self.values.pop().expect("find value in local scope").1
+    fn imports(&self) -> &SymbolResolver {
+        &self.info.file_info.imports
     }
 }

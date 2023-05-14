@@ -4,6 +4,8 @@ use std::{
     rc::Rc,
 };
 
+use crate::project::FunctionInfo;
+
 pub type GcString = Rc<String>;
 
 type GenericFn<'a> = Rc<dyn Fn(&[Value<'a>]) -> Value<'a>>;
@@ -17,7 +19,7 @@ pub enum Value<'a> {
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn<'a>),
-    AstFunction(&'a ast::Function<'a>),
+    Function(FunctionInfo<'a>),
 }
 
 impl Value<'_> {
@@ -29,7 +31,7 @@ impl Value<'_> {
             Value::Float(_) => "Float",
             Value::String(_) => "String",
             Value::FnBuildin(_) => "Fn",
-            Value::AstFunction(_) => "Fn",
+            Value::Function(_) => "Fn",
         }
     }
 }
@@ -50,8 +52,12 @@ impl fmt::Display for Value<'_> {
             Value::Int(i) => write!(f, "{i}"),
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
-            Value::FnBuildin(_) => Ok(()),
-            Value::AstFunction(_) => Ok(()),
+            Value::FnBuildin(_) => write!(f, "fun()"),
+            Value::Function(f) => {
+                let name = f.ast.name;
+
+                write!(f, "fun {name}()")
+            }
         }
     }
 }
@@ -86,7 +92,7 @@ impl fmt::Display for Int {
 
 impl<'a> From<&'a ast::Function<'a>> for Value<'a> {
     fn from(value: &'a ast::Function<'a>) -> Self {
-        Value::AstFunction(value)
+        Value::Function(value)
     }
 }
 

@@ -1,12 +1,14 @@
 mod function_context;
 mod interpreter;
 
+pub use function_context::FunctionContxt;
 use interpreter::InterpreterContext;
-use solar_parser::ast;
+use solar_parser::ast::{self, expr::FullExpression};
 
 use crate::{
     project::{FindError, GlobalModules, Module, ProjectInfo},
     util,
+    util::Scope,
     value::Value,
 };
 use std::{
@@ -15,7 +17,7 @@ use std::{
 };
 use thiserror::Error;
 
-pub use self::function_context::FunctionContext;
+pub use self::function_context::FunctionInfo;
 
 pub struct CompilerContext<'a> {
     /// Information about all loaded dependencies and sub-dependencies, flattend.
@@ -38,7 +40,7 @@ impl<'a> CompilerContext<'a> {
     }
 
     /// Finds the main function of the current target project
-    pub fn find_target_main(&self) -> Result<FunctionContext<'a>, FindError> {
+    pub fn find_target_main(&self) -> Result<FunctionInfo<'a>, FindError> {
         let path = util::target_id();
         let module = self.module_info.get(&path).unwrap();
 
@@ -55,12 +57,14 @@ impl<'a> CompilerContext<'a> {
     }
 
     /// Resolve module based on idpath
-    fn resolve_module(&self, idpath: &[String]) -> Result<&Module<'a>, FindError> {
+    pub fn resolve_module(&self, idpath: &[String]) -> Result<&Module<'a>, FindError> {
         self.module_info
             .get(idpath)
             .ok_or_else(|| FindError::ModuleNotFound(idpath.to_vec()))
     }
+}
 
+impl<'a> CompilerContext<'a> {
     /// Checks, whether supplied function call is a buildin function
     /// buildin functions behave quite different from values in some respect,
     /// which is fine. They will be hidden away in the stdlib.

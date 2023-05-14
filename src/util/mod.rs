@@ -1,7 +1,6 @@
-use solar_parser::{ast, ast::identifier::IdentifierPath, Ast};
-use thiserror::Error;
-
-use crate::project::Module;
+mod scope;
+pub use scope::*;
+use solar_parser::{ast, ast::identifier::IdentifierPath};
 
 /// Denotes an global identifier used to resolve
 /// modules and symbols across libraries and versions of libraries.

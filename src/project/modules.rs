@@ -1,4 +1,3 @@
-use crate::eval::FunctionContext;
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -31,7 +30,7 @@ impl<'a> Module<'a> {
         self.files.push(file);
     }
 
-    pub fn find(&self, symbol: &str) -> Result<Vec<FunctionContext<'a>>, FindError> {
+    pub fn find(&self, symbol: &str) -> Result<Vec<FunctionInfo<'a>>, FindError> {
         let v = Vec::new();
         for fileinfo in &self.files {
             let ast = fileinfo.ast;
@@ -40,7 +39,7 @@ impl<'a> Module<'a> {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
                         // TODO check compatible types here?
 
-                        let f = FunctionContext::new(fileinfo, self, f);
+                        let f = FunctionInfo::new(fileinfo, self, f);
                         v.push(f);
                     }
                     ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
@@ -222,4 +221,34 @@ fn resolve_imports<'a>(
     }
 
     Ok(imports)
+}
+
+/// Context containing all needed information
+/// for evalutating a specific function
+#[derive(Debug, Clone, Copy)]
+pub struct FunctionInfo<'a> {
+    /// Information about the file,
+    /// such as the ast, filename, and
+    /// the import table.
+    pub file_info: &'a FileInfo<'a>,
+
+    /// info about the module this file can be found in.
+    pub module: &'a Module<'a>,
+
+    /// AST of the function
+    pub ast: &'a ast::Function<'a>,
+}
+
+impl<'a> FunctionInfo<'a> {
+    pub fn new(
+        file_info: &'a FileInfo<'a>,
+        module: &'a Module<'a>,
+        ast: &'a ast::Function<'a>,
+    ) -> Self {
+        Self {
+            file_info,
+            module,
+            ast,
+        }
+    }
 }
