@@ -1,81 +1,55 @@
-use crate::project::Module;
-use crate::util::FindError;
-use crate::util::{self, IdPath};
-use crate::{GlobalModules, ProjectInfo, Value};
-use std::io;
+mod interpreter;
+use std::io::{Read, Write};
+
+use interpreter::InterpreterContext;
+
+use crate::project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo};
+use crate::util;
+use crate::value::Value;
 use std::ops::Deref;
 use std::sync::Mutex;
 use thiserror::Error;
 
-use solar_parser::{ast, ast::expr::FullExpression, Ast};
-
-pub struct InterpreterContext {
-    pub stdout: Mutex<Box<dyn io::Write>>,
-    pub stdin: Mutex<Box<dyn io::Read>>,
-}
-
-impl std::default::Default for InterpreterContext {
-    fn default() -> Self {
-        let stdin = io::stdin();
-        let stdout = io::stdout();
-        Self {
-            stdin: Mutex::new(Box::new(stdin)),
-            stdout: Mutex::new(Box::new(stdout)),
-        }
-    }
-}
+use solar_parser::ast;
+use solar_parser::ast::expr::FullExpression;
 
 pub struct CompilerContext<'a> {
+    /// Information about all loaded dependencies and sub-dependencies, flattend.
     pub project_info: ProjectInfo,
-    pub modules: GlobalModules<'a>,
-    // pub sources: HashMap<IdPath, Ast<'a>>,
-    pub interpreter_ctx: InterpreterContext,
+    /// contains all ASTs across all modules and (sub-)dependencies
+    pub module_info: GlobalModules<'a>,
+
+    pub interpreter_ctx: Mutex<InterpreterContext>,
 }
 
 impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
-    pub fn with_default_io(project_info: ProjectInfo, modules: GlobalModules<'a>) -> Self {
+    pub fn with_default_io(project_info: ProjectInfo, module_info: GlobalModules<'a>) -> Self {
         CompilerContext {
             project_info,
-            modules,
-            interpreter_ctx: InterpreterContext::default(),
-        }
-    }
-
-    /// Utility method to attach different standard input
-    pub fn with_stdin(self, stdin: impl io::Read) -> Self {
-        Self {
-            interpreter_ctx: InterpreterContext {
-                stdin: Mutex::new(Box::new(stdin)),
-                ..self.interpreter_ctx
-            },
-            ..self
-        }
-    }
-
-    /// Utility method to attach different standard output
-    pub fn with_stdout(self, stdout: impl io::Write) -> Self {
-        Self {
-            interpreter_ctx: InterpreterContext {
-                stdout: Mutex::new(Box::new(stdout)),
-                ..self.interpreter_ctx
-            },
-            ..self
+            module_info,
+            interpreter_ctx: Mutex::new(InterpreterContext::default()),
         }
     }
 
     /// Resolve module based on idpath
     fn resolve_module(&self, idpath: &[String]) -> Option<&Module<'a>> {
-        self.modules.get(idpath)
+        self.module_info.get(idpath)
     }
 }
 
+/// Context for evalutating code from a specific file.
 pub struct FileContext<'a> {
-    // Base identifier for this file.
-    // TODO needs to be per module.
-    pub this: Vec<String>,
-    pub ast: Ast<'a>,
+    /// Information about the file,
+    /// such as the ast, filename, and
+    /// the import table.
+    info: FileInfo<'a>,
+
+    /// info about the module this file can be found in.
+    pub module: Module<'a>,
+
+    /// Context for evaluation
     pub ctx: CompilerContext<'a>,
 }
 
@@ -156,12 +130,12 @@ impl<'a> FileContext<'a> {
         // allowed overloadings:
         // [String]
         // []
-        for arg in args {
-            let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
 
-            write!(out, "{arg}").expect("write to stdout");
-            out.flush().expect("write to stdout");
+        let mut out = self.interpreter_ctx.lock().expect("lock interpreter io");
+        for arg in args {
+            write!(*out, "{arg}").expect("write to interpreter io");
         }
+        out.flush().expect("write to interpreter io");
 
         Ok(Value::Void)
     }
@@ -176,37 +150,34 @@ impl<'a> FileContext<'a> {
     }
 
     fn buildin_readline(&self, args: &[Value]) -> Result<Value, EvalError> {
+        let mut iio = self.interpreter_ctx.lock().expect("lock interpreter io");
+
         // allowed overloadings:
         // [String]
         // []
         if !args.is_empty() {
+            // Check that no more than 1 argument got supplied
             if args.len() > 1 {
                 panic!("Expected 1 argument of type string to buildin_readline");
             }
 
+            // Verify that it is of type string
             let s = if let Value::String(s) = &args[0] {
                 s
             } else {
                 panic!("Expected argument to buildin_readline to be of type string");
             };
 
-            let mut out = self.interpreter_ctx.stdout.lock().expect("lock stdout");
-
-            write!(out, "{s}").expect("write to stdout");
-            out.flush().expect("flush stdout");
+            write!(iio, "{s}").expect("write to interpreter io");
+            iio.flush().expect("flush interpreter io");
         }
 
-        let mut r = self
-            .interpreter_ctx
-            .stdin
-            .lock()
-            .expect("lock standart input");
         let mut s = Vec::new();
 
         loop {
             // read exactly one character
             let mut buf = [0];
-            r.read_exact(&mut buf).expect("read from input");
+            iio.read_exact(&mut buf).expect("read from input");
 
             // grab buffer as character
             let b = buf[0];
@@ -222,12 +193,12 @@ impl<'a> FileContext<'a> {
         Ok(s.into())
     }
 
-    pub fn find_main(&self) -> Result<&ast::Function, util::FindError> {
+    pub fn find_main(&self) -> Result<&ast::Function, FindError> {
         // TODO this might be a value
-        let path = Vec::new();
-        let ast = self.sources.get(&path).unwrap();
+        let path = util::target_id();
+        let module = self.module_info.get(&path).unwrap();
 
-        util::find_in_ast(ast, "main")
+        module.find("main")
     }
 
     pub fn eval_function(
@@ -445,10 +416,11 @@ impl<'a> FileContext<'a> {
             // TODO requires imports/modules
 
             // TODO ALSO CHECK ALL OTHER ASTS IN CURRENT MODULE!
+            // module.find(name)
             // e.g. self.asts_in_module()
             let ast = self.ast;
 
-            let res = util::find_in_ast(&ast, name)?;
+            let res = util::find_in_module(&ast, name)?;
             // if let Ok(found) = util::find_in_ast(&ast, name) {
             //     candidates.push(found);
             // }

@@ -1,5 +1,4 @@
 use crate::util::IdPath;
-use anyhow::Result;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
 use std::collections::HashMap;
@@ -29,6 +28,46 @@ impl<'a> Module<'a> {
 
     pub fn add_file(&mut self, file: FileInfo<'a>) {
         self.files.push(file);
+    }
+
+    // TODO return Vec of Functions!
+    pub fn find(&self, symbol: &str) -> Result<&'a ast::Function<'a>, FindError> {
+        for file in self.files {
+            let ast = file.ast;
+            for i in &ast.items {
+                match i {
+                    ast::body::BodyItem::Function(f) if f.name == symbol => {
+                        // TODO check compatible types here
+
+                        return Ok(f);
+                    }
+                    ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
+                        panic!("Resolver can't yet handle types")
+                    }
+
+                    _ => continue,
+                    // Tests don't have names,
+                    // ast::body::BodyItem::Test(_) => continue,
+                    // Let bindings are resolved into the global scope
+                    // ast::body::BodyItem::Let(_) => continue,
+                }
+            }
+        }
+
+        Err(FindError::NotFound(symbol.to_string()))
+    }
+}
+
+#[derive(Debug, Clone, Error)]
+pub enum FindError {
+    NotFound(String),
+}
+
+impl std::fmt::Display for FindError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FindError::NotFound(name) => write!(f, "Function (or Type) {name} not found"),
+        }
     }
 }
 
