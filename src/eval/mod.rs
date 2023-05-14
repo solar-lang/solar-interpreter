@@ -1,14 +1,13 @@
 mod function_context;
 mod interpreter;
 
-pub use function_context::FunctionContxt;
+pub use function_context::*;
 use interpreter::InterpreterContext;
-use solar_parser::ast::{self, expr::FullExpression};
+use solar_parser::ast;
 
 use crate::{
-    project::{FindError, GlobalModules, Module, ProjectInfo},
+    project::{FindError, FunctionInfo, GlobalModules, Module, ProjectInfo},
     util,
-    util::Scope,
     value::Value,
 };
 use std::{
@@ -16,8 +15,6 @@ use std::{
     sync::Mutex,
 };
 use thiserror::Error;
-
-pub use self::function_context::FunctionInfo;
 
 pub struct CompilerContext<'a> {
     /// Information about all loaded dependencies and sub-dependencies, flattend.

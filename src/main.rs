@@ -8,7 +8,7 @@ use eval::CompilerContext;
 
 use project::{read_all_projects, read_modules};
 
-use crate::eval::FunctionContxt;
+use crate::eval::FunctionContext;
 
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
@@ -18,7 +18,10 @@ fn main() {
     let ctx = CompilerContext::with_default_io(project_info, modules);
     let f_main = ctx.find_target_main().expect("find main function");
 
-    let f_ctx = FunctionContxt { info: f_main, ctx };
+    let f_ctx = FunctionContext {
+        info: f_main,
+        ctx: &ctx,
+    };
 
     let result = f_ctx.eval(&[]).expect("evaluate code");
 

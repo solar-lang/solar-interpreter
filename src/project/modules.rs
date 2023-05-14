@@ -1,3 +1,4 @@
+use crate::eval::{CompilerContext, FunctionContext};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -250,5 +251,9 @@ impl<'a> FunctionInfo<'a> {
             module,
             ast,
         }
+    }
+
+    pub fn ctx(self, ctx: &'a CompilerContext<'a>) -> FunctionContext<'a> {
+        FunctionContext { info: self, ctx }
     }
 }

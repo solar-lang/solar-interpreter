@@ -2,19 +2,19 @@ use solar_parser::ast::{self, expr::FullExpression};
 
 use crate::{
     project::{FunctionInfo, SymbolResolver},
-    util::{self, Scope},
+    util::{self, IdPath, Scope},
     value::Value,
 };
 
 use super::{CompilerContext, EvalError};
 
 /// Contains all information needed to evaluate a function.
-pub struct FunctionContxt<'a> {
-    info: FunctionInfo<'a>,
-    ctx: CompilerContext<'a>,
+pub struct FunctionContext<'a> {
+    pub info: FunctionInfo<'a>,
+    pub ctx: &'a CompilerContext<'a>,
 }
 
-impl<'a> FunctionContxt<'a> {
+impl<'a> FunctionContext<'a> {
     /// Evaluate a function,
     pub fn eval(&self, args: &[Value<'a>]) -> Result<Value, EvalError> {
         let mut scope = Scope::new();
@@ -77,7 +77,7 @@ impl<'a> FunctionContxt<'a> {
                 }
 
                 // See, if we're calling a special buildin function
-                if let Some(result) = self.check_buildin_func(fc, &args) {
+                if let Some(result) = self.ctx.check_buildin_func(fc, &args) {
                     return result;
                 }
 
@@ -98,7 +98,7 @@ impl<'a> FunctionContxt<'a> {
                 match symbol {
                     // Only evaluate functions directly
                     // otherwise return value
-                    Value::Function(func) => self.eval_function(func, &args),
+                    Value::Function(func) => func.ctx(&self.ctx).eval(&args),
                     // if there are argument supplied to values,
                     // this is definitly and error.
                     v if !args.is_empty() => Err(EvalError::TypeError {
@@ -225,13 +225,12 @@ impl<'a> FunctionContxt<'a> {
             // we must also look up the local module.
             // that is ALL Asts within this module.
 
-            let res = self.info.module.find(name);
-
-            // if let Ok(found) = util::find_in_ast(&ast, name) {
-            //     candidates.push(found);
-            // }
-            for c in res {
-                candidates.push(Value::Function(c));
+            if let Ok(res) = self.info.module.find(name) {
+                for c in res {
+                    candidates.push(Value::Function(c));
+                }
+            } else {
+                eprintln!("{name} not found in current module");
             }
         }
 
@@ -251,13 +250,16 @@ impl<'a> FunctionContxt<'a> {
 
         let symbol = &path[0];
         if let Some(imports) = self.imports().get(symbol) {
-            for path in imports {
-                let mut basepath = path.to_vec();
-
+            for import in imports {
                 // TODO if path[1..].len() > 1, then imports should be length 1.
                 // because it means we are importing an entire module, and we shouldn't import multiple modules
                 // with the same name, I think.
-                basepath.extend(&path[1..]);
+
+                let basepath: IdPath = import
+                    .iter()
+                    .cloned()
+                    .chain(path.iter().skip(1).cloned())
+                    .collect();
 
                 // now basepath contains the full path id!
                 // neat :)
@@ -266,13 +268,13 @@ impl<'a> FunctionContxt<'a> {
                 let symbol = &basepath.last().expect("find element in path");
 
                 let Ok(module) = self.ctx.resolve_module(idpath) else {
-                    eprintln!("skipping over module {idpath}");
+                    eprintln!("skipping over module {idpath:?}");
                     continue;
                 };
 
                 // candidates from this module
                 let Ok(cs) = module.find(symbol) else {
-                    eprintln!("haven't found {symbol} in {idpath}");
+                    eprintln!("haven't found {symbol} in {idpath:?}");
                     continue;
                 };
 

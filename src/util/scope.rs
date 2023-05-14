@@ -1,3 +1,5 @@
+use crate::value::Value;
+
 #[derive(Debug, Clone, Default)]
 /// Logical Scope, optimized for small number of entries.
 /// Made so pushing and popping works fine.

@@ -1,4 +1,3 @@
-use solar_parser::ast;
 use std::{
     fmt::{self, Debug},
     rc::Rc,
@@ -53,8 +52,8 @@ impl fmt::Display for Value<'_> {
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
             Value::FnBuildin(_) => write!(f, "fun()"),
-            Value::Function(f) => {
-                let name = f.ast.name;
+            Value::Function(func) => {
+                let name = func.ast.name.value;
 
                 write!(f, "fun {name}()")
             }
@@ -87,12 +86,6 @@ impl fmt::Display for Int {
             Uint16(v) => write!(f, "{v}"),
             Uint8(v) => write!(f, "{v}"),
         }
-    }
-}
-
-impl<'a> From<&'a ast::Function<'a>> for Value<'a> {
-    fn from(value: &'a ast::Function<'a>) -> Self {
-        Value::Function(value)
     }
 }
 
