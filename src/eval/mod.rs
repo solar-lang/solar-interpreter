@@ -2,6 +2,7 @@ mod file_context;
 mod interpreter;
 
 use interpreter::InterpreterContext;
+use solar_parser::ast;
 
 use crate::{
     project::{FindError, GlobalModules, Module, ProjectInfo},
