@@ -1,44 +1,35 @@
-use solar_parser::{
-    ast::{self, expr::FullExpression},
-    Ast,
-};
-use std::ops::Deref;
+use solar_parser::ast::{self, expr::FullExpression};
 
 use crate::{
-    project::{FileInfo, FindError, Module},
+    project::{FileInfo, Module},
     util,
     value::Value,
 };
 
-use super::{CompilerContext, EvalError};
+use super::EvalError;
 
-/// Context for evalutating code from a specific file.
-pub struct FileContext<'a> {
+/// Context containing all needed information
+/// for evalutating a specific function
+pub struct FunctionContext<'a> {
     /// Information about the file,
     /// such as the ast, filename, and
     /// the import table.
-    info: FileInfo<'a>,
+    info: &'a FileInfo<'a>,
 
     /// info about the module this file can be found in.
-    pub module: Module<'a>,
+    module: &'a Module<'a>,
 
-    /// underlying compiler context for evaluation
-    pub ctx: CompilerContext<'a>,
-}
-impl<'a> Deref for FileContext<'a> {
-    type Target = CompilerContext<'a>;
-    fn deref(&self) -> &Self::Target {
-        &self.ctx
-    }
+    /// AST of the function
+    func: &'a ast::Function<'a>,
 }
 
-impl<'a> FileContext<'a> {
-    pub fn find_main(&self) -> Result<&ast::Function, FindError> {
-        // TODO this might be a value
-        let path = util::target_id();
-        let module = self.module_info.get(&path).unwrap();
-
-        module.find("main")
+impl<'a> FunctionContext<'a> {
+    pub fn new(
+        info: &'a FileInfo<'a>,
+        module: &'a Module<'a>,
+        func: &'a ast::Function<'a>,
+    ) -> Self {
+        Self { info, module, func }
     }
 
     pub fn eval_function(

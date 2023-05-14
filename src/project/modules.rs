@@ -1,3 +1,4 @@
+use crate::eval::FunctionContext;
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -30,16 +31,17 @@ impl<'a> Module<'a> {
         self.files.push(file);
     }
 
-    // TODO return Vec of Functions!
-    pub fn find(&self, symbol: &str) -> Result<&'a ast::Function<'a>, FindError> {
-        for file in self.files {
-            let ast = file.ast;
+    pub fn find(&self, symbol: &str) -> Result<Vec<FunctionContext<'a>>, FindError> {
+        let v = Vec::new();
+        for fileinfo in &self.files {
+            let ast = fileinfo.ast;
             for i in &ast.items {
                 match i {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
-                        // TODO check compatible types here
+                        // TODO check compatible types here?
 
-                        return Ok(f);
+                        let f = FunctionContext::new(fileinfo, self, f);
+                        v.push(f);
                     }
                     ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
                         panic!("Resolver can't yet handle types")
@@ -54,19 +56,30 @@ impl<'a> Module<'a> {
             }
         }
 
-        Err(FindError::NotFound(symbol.to_string()))
+        if v.is_empty() {
+            Err(FindError::NotFound(symbol.to_string()))
+        } else {
+            Ok(v)
+        }
     }
 }
 
 #[derive(Debug, Clone, Error)]
 pub enum FindError {
     NotFound(String),
+    ModuleNotFound(IdPath),
+    TooMany { symbol: String, module: IdPath },
 }
 
 impl std::fmt::Display for FindError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FindError::NotFound(name) => write!(f, "Function (or Type) {name} not found"),
+            Self::ModuleNotFound(path) => write!(f, "Module {path:?} not found"),
+            Self::TooMany { symbol, module } => write!(
+                f,
+                "found too many candidates for symbol '{symbol}' in module {module:?}. Expected to find just 1"
+            ),
         }
     }
 }

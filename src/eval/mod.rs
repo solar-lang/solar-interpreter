@@ -1,4 +1,4 @@
-mod file_context;
+mod function_context;
 mod interpreter;
 
 use interpreter::InterpreterContext;
@@ -6,6 +6,7 @@ use solar_parser::ast;
 
 use crate::{
     project::{FindError, GlobalModules, Module, ProjectInfo},
+    util,
     value::Value,
 };
 use std::{
@@ -13,6 +14,8 @@ use std::{
     sync::Mutex,
 };
 use thiserror::Error;
+
+pub use self::function_context::FunctionContext;
 
 pub struct CompilerContext<'a> {
     /// Information about all loaded dependencies and sub-dependencies, flattend.
@@ -34,9 +37,28 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
+    /// Finds the main function of the current target project
+    pub fn find_target_main(&self) -> Result<FunctionContext<'a>, FindError> {
+        let path = util::target_id();
+        let module = self.module_info.get(&path).unwrap();
+
+        let mut candidates = module.find("main")?;
+        if candidates.len() != 1 {
+            return Err(FindError::TooMany {
+                symbol: "main".to_string(),
+                module: path.clone(),
+            });
+        }
+
+        let f_main = candidates.pop().unwrap();
+        Ok(f_main)
+    }
+
     /// Resolve module based on idpath
-    fn resolve_module(&self, idpath: &[String]) -> Option<&Module<'a>> {
-        self.module_info.get(idpath)
+    fn resolve_module(&self, idpath: &[String]) -> Result<&Module<'a>, FindError> {
+        self.module_info
+            .get(idpath)
+            .ok_or_else(|| FindError::ModuleNotFound(idpath.to_vec()))
     }
 
     /// Checks, whether supplied function call is a buildin function
