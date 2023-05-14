@@ -38,6 +38,42 @@ impl<'a> CompilerContext<'a> {
         self.module_info.get(idpath)
     }
 
+    /// Checks, whether supplied function call is a buildin function
+    /// buildin functions behave quite different from values in some respect,
+    /// which is fine. They will be hidden away in the stdlib.
+    /// Returns None, if the supplied function call does not address a buildin function.
+    fn check_buildin_func(
+        &'a self,
+        func: &ast::expr::FunctionCall,
+        args: &[Value<'a>],
+    ) -> Option<Result<Value<'a>, EvalError>> {
+        if func.function_name.value.len() != 1 {
+            return None;
+        }
+
+        let fname = func.function_name.value[0].value;
+
+        if !fname.starts_with("buildin_") && !fname.starts_with("Buildin_") {
+            return None;
+        }
+
+        // cut off "buildin_" or "Buildin_"
+        let shortened = &fname["buildin_".len()..];
+
+        let res = match shortened {
+            "str_concat" => self.buildin_str_concat(args),
+            "identity" => self.buildin_identity(args),
+            "readline" => self.buildin_readline(args),
+            "print" => self.buildin_print(args),
+
+            _ => Err(EvalError::WrongBuildin {
+                found: fname.to_string(),
+            }),
+        };
+
+        Some(res)
+    }
+
     fn buildin_str_concat(&self, args: &[Value]) -> Result<Value, EvalError> {
         let mut s = String::new();
 
