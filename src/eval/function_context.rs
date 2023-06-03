@@ -9,12 +9,12 @@ use crate::{
 use super::{CompilerContext, EvalError};
 
 /// Contains all information needed to evaluate a function.
-pub struct FunctionContext<'a> {
-    pub info: FunctionInfo<'a>,
+pub struct FunctionContext<'a, 'b> {
     pub ctx: &'a CompilerContext<'a>,
+    pub info: FunctionInfo<'b>,
 }
 
-impl<'a> FunctionContext<'a> {
+impl<'a, 'b> FunctionContext<'a, 'b> {
     /// Evaluate a function,
     pub fn eval(&'a self, args: &[Value<'a>]) -> Result<Value<'a>, EvalError> {
         let mut scope = Scope::new();
@@ -99,6 +99,9 @@ impl<'a> FunctionContext<'a> {
                     // Only evaluate functions directly
                     // otherwise return value
                     Value::Function(func) => {
+                        // TODO dont create functioncontext here. Instead, move fc to global context.
+                        // A given FC needs to be created only once.
+                        // With the FC AND the argument-types we have all needed context to compile a function.
                         let ctx = func.ctx(&self.ctx);
                         ctx.eval(&args)
                     }

@@ -254,7 +254,7 @@ impl<'a> FunctionInfo<'a> {
         }
     }
 
-    pub fn ctx(self, ctx: &'a CompilerContext<'a>) -> FunctionContext<'a> {
-        FunctionContext { info: self, ctx }
+    pub fn ctx<'ctx>(self, ctx: &'ctx CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
+        FunctionContext { ctx, info: self }
     }
 }

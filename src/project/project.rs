@@ -41,7 +41,7 @@ pub type GlobalModules<'a> = HashMap<IdPath, Module<'a>>;
 
 /// create global mapping of ModulePaths to Modules
 /// i.e. across all dependencies and sub-dependencies
-pub fn read_modules(projects: &ProjectInfo) -> anyhow::Result<GlobalModules<'a>> {
+pub fn read_modules(projects: &ProjectInfo) -> anyhow::Result<GlobalModules<'_>> {
     let mut modules = HashMap::new();
 
     for (project_id, project) in projects.iter_values() {

@@ -16,19 +16,22 @@ use std::{
 };
 use thiserror::Error;
 
+/// Struct that gets created once globally
+/// Containing Information about all Modules, ASTs, Projects
 pub struct CompilerContext<'a> {
     /// Information about all loaded dependencies and sub-dependencies, flattend.
-    pub project_info: ProjectInfo,
+    pub project_info: &'a ProjectInfo,
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
+    /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
 }
 
 impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
-    pub fn with_default_io(project_info: ProjectInfo, module_info: GlobalModules<'a>) -> Self {
+    pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
         CompilerContext {
             project_info,
             module_info,
