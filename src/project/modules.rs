@@ -33,25 +33,25 @@ impl<'a> Module<'a> {
         self.files.push(file);
     }
 
-    pub fn find(&'a self, symbol: &str, idmodule: IdModule) -> Result<Vec<SymbolId>, FindError> {
+    pub fn find(&'a self, symbol: &str, idmodule: &[String]) -> Result<Vec<SymbolId>, FindError> {
         let mut v = Vec::new();
 
-        for (idfile, fileinfo) in &self.files.iter().enumerate() {
+        for (idfile, fileinfo) in self.files.iter().enumerate() {
             let ast = &fileinfo.ast;
             for (iditem, i) in ast.items.iter().enumerate() {
                 match i {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
-                        v.push((idmodule.clone(), idfile as u32, iditem as u32));
+                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
                     }
                     ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
-                        panic!("Resolver can't yet handle types")
+                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
+                    }
+                    ast::body::BodyItem::Let(l) if l.identifier == symbol => {
+                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
                     }
 
                     _ => continue,
                     // Tests don't have names,
-                    // ast::body::BodyItem::Test(_) => continue,
-                    // Let bindings are resolved into the global scope
-                    // ast::body::BodyItem::Let(_) => continue,
                 }
             }
         }

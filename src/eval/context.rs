@@ -2,6 +2,7 @@ use solar_parser::ast;
 use solar_parser::ast::body::BodyItem;
 use solar_parser::ast::expr::FullExpression;
 
+use crate::id::IdModule;
 use crate::id::SymbolId;
 use crate::project::FileInfo;
 use crate::project::Module;
@@ -10,6 +11,7 @@ use crate::project::SymbolResolver;
 use crate::util;
 
 use crate::project::FindError;
+use crate::util::IdPath;
 use crate::util::Scope;
 
 use super::interpreter::InterpreterContext;
@@ -18,8 +20,6 @@ use super::EvalError;
 use crate::value::Value;
 
 use std::sync::Mutex;
-
-use crate::project::FunctionInfo;
 
 use crate::project::GlobalModules;
 
@@ -62,11 +62,12 @@ impl<'a> CompilerContext<'a> {
     }
 
     /// Finds the main function of the current target project
-    pub fn find_target_main(&'a self) -> Result<FunctionInfo<'a>, FindError> {
+    pub fn find_target_main(&'a self) -> Result<SymbolId, FindError> {
         let path = util::target_id();
         let module = self.module_info.get(&path).unwrap();
 
-        let mut candidates = module.find("main")?;
+        let mut candidates = module.find("main", &util::target_id())?;
+
         if candidates.len() != 1 {
             return Err(FindError::TooMany {
                 symbol: "main".to_string(),
@@ -88,6 +89,7 @@ impl<'a> CompilerContext<'a> {
 
 struct Lookup<'a> {
     module: &'a Module<'a>,
+    idmodule: IdModule,
     imports: &'a SymbolResolver,
 }
 
@@ -100,10 +102,11 @@ impl<'a> CompilerContext<'a> {
         symbol_id: SymbolId,
         args: &[Value<'a>],
     ) -> Result<Value<'a>, EvalError> {
-        let (module, fileinfo, item) = self.get_symbol(symbol_id);
+        let (module, fileinfo, item) = self.get_symbol(symbol_id.clone());
 
         let lookup = Lookup {
             module,
+            idmodule: symbol_id.0,
             imports: &fileinfo.imports,
         };
 
@@ -326,7 +329,11 @@ impl<'a> CompilerContext<'a> {
     fn resolve_symbol(
         &'a self,
         path: &[String],
-        Lookup { module, imports }: Lookup,
+        Lookup {
+            module,
+            idmodule,
+            imports,
+        }: Lookup,
         // TODO type of first argument is also relevant! Add as argument
         scope: &Scope<'a>,
     ) -> Result<Vec<Value<'a>>, EvalError> {
@@ -355,9 +362,8 @@ impl<'a> CompilerContext<'a> {
             // we must also look up the local module.
             // that is ALL Asts within this module.
 
-            if let Ok(res) = module.find(name) {
-                for c in res {
-                    let symbolid = (idmodule, idfile, iditem);
+            if let Ok(res) = module.find(name, &idmodule) {
+                for symbolid in res {
                     candidates.push(Value::Function(symbolid));
                 }
             } else {
@@ -395,31 +401,27 @@ impl<'a> CompilerContext<'a> {
                 // now basepath contains the full path id!
                 // neat :)
 
-                let idpath = &basepath[..(basepath.len() - 1)];
+                let idmodule = &basepath[..(basepath.len() - 1)];
                 let symbol = &basepath.last().expect("find element in path");
 
-                let Ok(module) = self.ctx.resolve_module(idpath) else {
-                    eprintln!("skipping over module {idpath:?}");
+                let Ok(module) = self.resolve_module(idmodule) else {
+                    eprintln!("skipping over module {idmodule:?}");
                     continue;
                 };
 
                 // candidates from this module
-                let Ok(cs) = module.find(symbol) else {
-                    eprintln!("haven't found {symbol} in {idpath:?}");
+                let Ok(cs) = module.find(symbol, idmodule) else {
+                    eprintln!("haven't found {symbol} in {idmodule:?}");
                     continue;
                 };
 
                 for c in cs {
-                    candidates.push(Value::Function(c.unique_id()));
+                    candidates.push(Value::Function(c));
                 }
             }
         }
 
         Ok(candidates)
-    }
-
-    fn imports(&self) -> &SymbolResolver {
-        &self.info.file_info.imports
     }
 }
 
