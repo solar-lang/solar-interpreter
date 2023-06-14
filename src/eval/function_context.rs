@@ -6,7 +6,7 @@ use crate::{
     value::Value,
 };
 
-use super::{context::CompilerContext, EvalError};
+use super::CompilerContext;
 
 /// Contains all information needed to evaluate a function.
 pub struct FunctionContext<'a, 'b> {

@@ -49,16 +49,16 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
-    pub fn get_symbol(&self, (module, file, item): SymbolId) -> (&Module, &FileInfo, BodyItem) {
+    pub fn get_symbol(&self, (module, file, item): SymbolId) -> (&Module, &FileInfo, &BodyItem) {
         let module = self
             .module_info
             .get(&module)
             .expect("IdModule  to be valid");
 
         let fileinfo = module.files.get(file as usize).expect("IdFile to be valid");
-        let item = fileinfo.ast.items[item as usize];
+        let item = &fileinfo.ast.items[item as usize];
 
-        (module, fileinfo, item)
+        (module, fileinfo, &item)
     }
 
     /// Finds the main function of the current target project
@@ -87,6 +87,7 @@ impl<'a> CompilerContext<'a> {
     }
 }
 
+#[derive(Clone)]
 struct Lookup<'a> {
     module: &'a Module<'a>,
     idmodule: IdModule,
@@ -98,7 +99,7 @@ impl<'a> CompilerContext<'a> {
     // TODO rename to resolve symbol
     // and build up static table
     pub fn eval_symbol(
-        &self,
+        &'a self,
         symbol_id: SymbolId,
         args: &[Value<'a>],
     ) -> Result<Value<'a>, EvalError> {
@@ -134,9 +135,9 @@ impl<'a> CompilerContext<'a> {
     }
 
     /// Evaluate a function,
-    pub fn eval(
+    fn eval(
         &'a self,
-        ast: ast::Function,
+        ast: &ast::Function,
         lookup: Lookup,
         args: &[Value<'a>],
     ) -> Result<Value<'a>, EvalError> {
@@ -150,7 +151,7 @@ impl<'a> CompilerContext<'a> {
         self.eval_full_expression(&ast.body, lookup, &mut scope)
     }
 
-    pub fn eval_full_expression(
+    fn eval_full_expression(
         &'a self,
         expr: &FullExpression,
         lookup: Lookup,
@@ -161,7 +162,7 @@ impl<'a> CompilerContext<'a> {
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
-                    let value = self.eval_full_expression(value, lookup, scope)?;
+                    let value = self.eval_full_expression(value, lookup.clone(), scope)?;
                     scope.push(ident.value, value)
                 }
 
@@ -197,7 +198,7 @@ impl<'a> CompilerContext<'a> {
                 // First, evaluate all arguments
                 let mut args: Vec<Value> = Vec::with_capacity(fc.args.len());
                 for arg in fc.args.iter() {
-                    let v = self.eval_sub_expr(&arg.value, lookup, scope)?;
+                    let v = self.eval_sub_expr(&arg.value, lookup.clone(), scope)?;
                     args.push(v);
                 }
 
