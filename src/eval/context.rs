@@ -58,12 +58,16 @@ impl<'a> CompilerContext<'a> {
         let fileinfo = module.files.get(file as usize).expect("IdFile to be valid");
         let item = &fileinfo.ast.items[item as usize];
 
-        (module, fileinfo, &item)
+        (module, fileinfo, item)
     }
 
     /// Finds the main function of the current target project
     pub fn find_target_main(&'a self) -> Result<SymbolId, FindError> {
         let path = util::target_id();
+        for module in &self.module_info {
+            // FIXME the error is, that the FILENAME is appended to the module names.
+            dbg!(&module.0);
+        }
         let module = self.module_info.get(&path).unwrap();
 
         let mut candidates = module.find("main", &util::target_id())?;

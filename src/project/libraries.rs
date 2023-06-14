@@ -85,21 +85,23 @@ impl Project {
             let path = entry.path();
             // We need to strip the path,
             // because we don't care about the root file system
-            let idpath = path
+            let filepath = path
                 .strip_prefix(&self.fsroot)
                 .expect("to strip common prefix of filepath");
 
             // absolute id path.
-            let idpath = self
+            let mut idmodule = self
                 .basepath
                 .iter()
                 .cloned()
                 .chain(
-                    idpath
+                    filepath
                         .iter()
                         .map(|f| f.to_str().expect("receive str from OsString").to_string()),
                 )
                 .collect::<Vec<_>>();
+            // remove filename from IDmodule.
+            idmodule.pop().unwrap();
 
             // read in source code of file.
             // and leak the memory.
@@ -119,7 +121,7 @@ impl Project {
                 content,
             )?;
 
-            map.entry(idpath)
+            map.entry(idmodule)
                 .or_insert(Module::new(project_id))
                 .add_file(fileinfo);
         }
