@@ -1,4 +1,4 @@
-use crate::eval::{modname::CompilerContext, FunctionContext};
+use crate::eval::{FunctionContext, CompilerContext};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -229,6 +229,7 @@ fn resolve_imports<'a>(
 /// Context containing all needed information
 /// for evalutating a specific function
 #[derive(Debug, Clone, Copy)]
+// TODO remove
 pub struct FunctionInfo<'a> {
     /// Information about the file,
     /// such as the files ast, filename, and
@@ -262,7 +263,7 @@ impl<'a> FunctionInfo<'a> {
         self.ast.span.as_ptr() as usize
     }
 
-    pub fn ctx<'ctx>(self, ctx: &'ctx modname::CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
+    pub fn ctx<'ctx>(self, ctx: &'ctx CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
         FunctionContext { ctx, info: self }
     }
 }

@@ -1,6 +1,9 @@
 
 use solar_parser::ast;
+use solar_parser::ast::body::BodyItem;
 
+use crate::id::SymbolId;
+use crate::project::FileInfo;
 use crate::project::Module;
 
 use crate::util;
@@ -16,10 +19,6 @@ use std::sync::Mutex;
 
 use crate::project::FunctionInfo;
 
-use hotel::HotelMap;
-
-use std::sync::RwLock;
-
 use crate::project::GlobalModules;
 
 use crate::project::ProjectInfo;
@@ -33,17 +32,6 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
-    /// Information about all functions
-    /// encountered during compilation.
-    /// The information contains all that is needed
-    /// to compile the function (along with the Context)
-    ///
-    /// Usize is the unique ID of the function info.
-    ///
-    /// RwLock, because it's not build
-    /// during compilation step.
-    pub function_infos: RwLock<HotelMap<usize, FunctionInfo<'a>>>,
-
     /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
 }
@@ -55,29 +43,29 @@ impl<'a> CompilerContext<'a> {
         CompilerContext {
             project_info,
             module_info,
-            function_infos: Default::default(),
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
         }
-    }
-
-    pub(crate) fn get_fn_info(&self, index: usize) -> Option<FunctionInfo<'a>> {
-        let map = self.function_infos.read().expect("read function infos");
-        map.get_by_index(index).cloned()
     }
 
     // TODO rename resolve symbol
     // and build up static table
     pub fn eval_symbol(
         &self,
-        index: usize,
+        symbol_id: SymbolId,
         args: &[Value<'a>],
     ) -> Result<Value<'a>, EvalError> {
-        let map = self.function_infos.read().expect("read function infos");
-        let f = map.get_by_index(index).cloned();
-        let f = f.expect("function index to be valid");
+        let (module, fileinfo, item) = self.get_symbol(symbol_id);
+        // TODO
 
-        let ctx = f.ctx(&self);
-        ctx.eval(&args)
+    }
+
+    pub fn get_symbol(&self, (module, file, item): SymbolId) -> (&Module, &FileInfo, BodyItem) {
+        let module = self.module_info.get(&module).expect("IdModule  to be valid");
+        
+        let fileinfo = module.files.get(file as usize).expect("IdFile to be valid");
+        let item = fileinfo.ast.items[item as usize];
+
+        (module, fileinfo, item)
     }
 
     /// Finds the main function of the current target project
@@ -105,6 +93,7 @@ impl<'a> CompilerContext<'a> {
     }
 }
 
+/// Buildin Functions
 impl<'a> CompilerContext<'a> {
     /// Checks, whether supplied function call is a buildin function
     /// buildin functions behave quite different from values in some respect,

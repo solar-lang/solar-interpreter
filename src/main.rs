@@ -3,6 +3,7 @@ mod eval;
 mod project;
 mod util;
 mod value;
+pub mod id;
 
 use eval::CompilerContext;
 

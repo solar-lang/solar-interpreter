@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::project::FunctionInfo;
+use crate::id::SymbolId;
 
 pub type GcString = Rc<String>;
 
@@ -18,7 +18,7 @@ pub enum Value<'a> {
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn<'a>),
-    Function(usize),
+    Function(SymbolId),
 }
 
 impl Value<'_> {
