@@ -1,9 +1,9 @@
 mod libraries;
 mod modules;
-mod project;
+mod project_info;
 pub use libraries::*;
 pub use modules::*;
-pub use project::*;
+pub use project_info::*;
 
 use crate::util::IdPath;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,7 @@ impl SolarConfig {
         Ok(cfg)
     }
 
+/* 
     pub fn basepath(&self) -> IdPath {
         let publisher = if let Some(p) = &self.publisher { p } else { "" };
 
@@ -54,6 +55,7 @@ impl SolarConfig {
 
         v
     }
+*/
 
     pub fn deps(&self) -> Vec<Dependency> {
         let Some(deps) = &self.dependencies else {
@@ -126,7 +128,7 @@ impl Dependency {
 fn get_solar_path() -> String {
     let solar_path = std::env::var("SOLAR_PATH").unwrap_or("~/.solar/".to_string());
     let home_path = std::env::var("HOME").expect("get home path env variable");
-    let mut solar_path: String = solar_path.replace("~", &home_path);
+    let mut solar_path: String = solar_path.replace('~', &home_path);
 
     if !solar_path.ends_with('/') {
         solar_path.push('/');
