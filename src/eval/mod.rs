@@ -1,6 +1,6 @@
+mod context;
 mod function_context;
 mod interpreter;
-mod context;
 
 pub use context::*;
 
@@ -9,19 +9,25 @@ use hotel::HotelMap;
 use interpreter::InterpreterContext;
 use solar_parser::ast;
 
-use crate::{
-    project::{FindError, },
-    value::Value,
-};
+use crate::{project::FindError, value::Value};
 use thiserror::Error;
-
 
 #[derive(Debug, Error)]
 pub enum EvalError {
     IntConversion(#[from] std::num::ParseIntError),
     FindError(#[from] FindError),
-    WrongBuildin { found: String },
-    TypeError { got: String, wanted: String },
+    WrongBuildin {
+        found: String,
+    },
+    TypeError {
+        got: String,
+        wanted: String,
+    },
+    /// Variables musn't be called
+    CallingVariable {
+        identifer: String,
+        file: String,
+    },
 }
 
 impl std::fmt::Display for EvalError {
@@ -35,6 +41,10 @@ impl std::fmt::Display for EvalError {
 
             Self::TypeError { got, wanted } => {
                 write!(f, "Wrong type supplied. Expected {wanted}, got {got}")
+            }
+
+            Self::CallingVariable { identifer, file } => {
+                write!(f, "tried to call variable {identifer} in {file}. Don't supply arguments to variables, it will be interpreted as a function call.")
             }
         }
     }

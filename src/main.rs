@@ -1,9 +1,9 @@
 #![feature(string_leak)]
 mod eval;
+pub mod id;
 mod project;
 mod util;
 mod value;
-pub mod id;
 
 use eval::CompilerContext;
 

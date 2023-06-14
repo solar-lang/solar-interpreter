@@ -1,6 +1,5 @@
 use crate::util::IdPath;
 
-
 pub type SymbolId = (IdModule, IdFile, IdItem);
 
 pub type IdModule = IdPath;

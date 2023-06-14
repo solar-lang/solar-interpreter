@@ -1,4 +1,5 @@
-use crate::eval::{FunctionContext, CompilerContext};
+use crate::eval::{CompilerContext, FunctionContext};
+use crate::id::{IdModule, SymbolId};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -10,6 +11,7 @@ pub type SymbolResolver = HashMap<String, Vec<IdPath>>;
 #[derive(Debug)]
 pub struct Module<'a> {
     // NOTE u32 might be better
+    // TODO we don't need that, after having resolved all import tables at ast creation time.
     pub project_id: usize,
     /// Set of all file inside this module
     pub files: Vec<FileInfo<'a>>,
@@ -31,18 +33,15 @@ impl<'a> Module<'a> {
         self.files.push(file);
     }
 
-    pub fn find(&'a self, symbol: &str) -> Result<Vec<FunctionInfo<'a>>, FindError> {
+    pub fn find(&'a self, symbol: &str, idmodule: IdModule) -> Result<Vec<SymbolId>, FindError> {
         let mut v = Vec::new();
 
-        for fileinfo in &self.files {
+        for (idfile, fileinfo) in &self.files.iter().enumerate() {
             let ast = &fileinfo.ast;
-            for i in &ast.items {
+            for (iditem, i) in ast.items.iter().enumerate() {
                 match i {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
-                        // TODO check compatible types here?
-
-                        let f = FunctionInfo::new(fileinfo, self, f);
-                        v.push(f);
+                        v.push((idmodule.clone(), idfile as u32, iditem as u32));
                     }
                     ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
                         panic!("Resolver can't yet handle types")
