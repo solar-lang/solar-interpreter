@@ -64,10 +64,6 @@ impl<'a> CompilerContext<'a> {
     /// Finds the main function of the current target project
     pub fn find_target_main(&'a self) -> Result<SymbolId, FindError> {
         let path = util::target_id();
-        for module in &self.module_info {
-            // FIXME the error is, that the FILENAME is appended to the module names.
-            dbg!(&module.0);
-        }
         let module = self.module_info.get(&path).unwrap();
 
         let mut candidates = module.find("main", &util::target_id())?;
@@ -276,8 +272,7 @@ impl<'a> CompilerContext<'a> {
             V::FullIdentifier(path) => {
                 // Actually, I don't think I want to allow Paths here.
                 // just field access.
-                // this is likely to be deleted.
-
+                // this line is likely to be deleted.
                 let path = util::normalize_path(path);
 
                 if path.len() != 1 {
@@ -286,6 +281,9 @@ impl<'a> CompilerContext<'a> {
 
                 let mut result = self.resolve_symbol(&path, lookup, scope)?;
                 if result.len() != 1 {
+                    if result.is_empty() {
+                        panic!("no results looking up {path:?}:\n {result:#?}")
+                    }
                     panic!("found multiple results for {path:?}:\n {result:#?}")
                 }
 
@@ -371,9 +369,9 @@ impl<'a> CompilerContext<'a> {
                 for symbolid in res {
                     candidates.push(Value::Function(symbolid));
                 }
-            } else {
-                eprintln!("{name} not found in current module");
             }
+
+            // else not found in current module
         }
 
         // 2.) see, if the element is from an import
@@ -397,7 +395,7 @@ impl<'a> CompilerContext<'a> {
                 // because it means we are importing an entire module, and we shouldn't import multiple modules
                 // with the same name, I think.
 
-                let basepath: IdPath = import
+                let idmodule: IdPath = import
                     .iter()
                     .cloned()
                     .chain(path.iter().skip(1).cloned())
@@ -406,17 +404,16 @@ impl<'a> CompilerContext<'a> {
                 // now basepath contains the full path id!
                 // neat :)
 
-                let idmodule = &basepath[..(basepath.len() - 1)];
-                let symbol = &basepath.last().expect("find element in path");
+                // let symbol = &basepath.last().expect("find element in path");
 
-                let Ok(module) = self.resolve_module(idmodule) else {
-                    eprintln!("skipping over module {idmodule:?}");
+                let Ok(module) = self.resolve_module(&idmodule) else {
+                    // eprintln!("skipping over module {idmodule:?}, not found");
                     continue;
                 };
 
                 // candidates from this module
-                let Ok(cs) = module.find(symbol, idmodule) else {
-                    eprintln!("haven't found {symbol} in {idmodule:?}");
+                let Ok(cs) = module.find(symbol, &idmodule) else {
+                    // eprintln!("haven't found {symbol} in {idmodule:?}");
                     continue;
                 };
 

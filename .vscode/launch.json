@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'solar-interpreter'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=solar-interpreter",
+                    "--package=solar-interpreter"
+                ],
+                "filter": {
+                    "name": "solar-interpreter",
+                    "kind": "bin"
+                }
+            },
+            "args": ["./samples/3-proj"],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'solar-interpreter'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=solar-interpreter",
+                    "--package=solar-interpreter"
+                ],
+                "filter": {
+                    "name": "solar-interpreter",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

@@ -31,31 +31,31 @@ impl SolarConfig {
         Ok(cfg)
     }
 
-/* 
-    pub fn basepath(&self) -> IdPath {
-        let publisher = if let Some(p) = &self.publisher { p } else { "" };
+    /*
+        pub fn basepath(&self) -> IdPath {
+            let publisher = if let Some(p) = &self.publisher { p } else { "" };
 
-        vec![
-            format!("{}({})", self.name, publisher),
-            self.version.to_owned(),
-        ]
-    }
-
-    pub fn authors(&self) -> Vec<String> {
-        let mut v = Vec::new();
-        if let Some(a) = &self.author {
-            v.push(a.to_string());
+            vec![
+                format!("{}({})", self.name, publisher),
+                self.version.to_owned(),
+            ]
         }
 
-        if let Some(authors) = &self.authors {
-            for a in authors {
+        pub fn authors(&self) -> Vec<String> {
+            let mut v = Vec::new();
+            if let Some(a) = &self.author {
                 v.push(a.to_string());
             }
-        }
 
-        v
-    }
-*/
+            if let Some(authors) = &self.authors {
+                for a in authors {
+                    v.push(a.to_string());
+                }
+            }
+
+            v
+        }
+    */
 
     pub fn deps(&self) -> Vec<Dependency> {
         let Some(deps) = &self.dependencies else {

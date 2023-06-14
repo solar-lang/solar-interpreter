@@ -3,10 +3,10 @@ use @std.types.concat
 use @std.io.(println, readline)
 
 fun main() =
-    let name = readline "Hey there!\nWhat's your name? "
+    let name = readline "Hey there!\nWhat's your name? ",
         greeting = greet name
     in
-        println g
+        println greeting
 
 fun greet(n: String) -> String =
     "Hello " ++ n

@@ -48,7 +48,6 @@ pub fn read_modules(projects: &ProjectInfo) -> anyhow::Result<GlobalModules<'_>>
         let symbol_table = project.read_all(project_id)?;
 
         for (sym, path) in symbol_table.into_iter() {
-            dbg!(&sym);
             modules.insert(sym, path);
         }
     }
