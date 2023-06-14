@@ -1,4 +1,4 @@
-use crate::eval::{CompilerContext, FunctionContext};
+use crate::eval::{modname::CompilerContext, FunctionContext};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -89,6 +89,7 @@ impl std::fmt::Display for FindError {
 pub struct FileInfo<'a> {
     // NOTE this might be redundant
     pub filename: String,
+
     /// Maps individual symbols (e.g. `length`) to paths,
     /// where they should be found in (e.g. std/0.0.1/string/).
     /// It may be, that multiple locations apply.
@@ -230,11 +231,12 @@ fn resolve_imports<'a>(
 #[derive(Debug, Clone, Copy)]
 pub struct FunctionInfo<'a> {
     /// Information about the file,
-    /// such as the ast, filename, and
+    /// such as the files ast, filename, and
     /// the import table.
     pub file_info: &'a FileInfo<'a>,
 
-    /// info about the module this file can be found in.
+    /// Info about the module this file can be found in.
+    /// Needed to resolve symbols within the function.
     pub module: &'a Module<'a>,
 
     /// AST of the function
@@ -254,7 +256,13 @@ impl<'a> FunctionInfo<'a> {
         }
     }
 
-    pub fn ctx<'ctx>(self, ctx: &'ctx CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
+    /// Returns a number uniquely identifying this specific function info.
+    /// Implemented using the memory location of the source codes ast of the function.
+    pub fn unique_id(&self) -> usize {
+        self.ast.span.as_ptr() as usize
+    }
+
+    pub fn ctx<'ctx>(self, ctx: &'ctx modname::CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
         FunctionContext { ctx, info: self }
     }
 }

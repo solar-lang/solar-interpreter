@@ -6,7 +6,7 @@ use crate::{
     value::Value,
 };
 
-use super::{CompilerContext, EvalError};
+use super::{context::CompilerContext, EvalError};
 
 /// Contains all information needed to evaluate a function.
 pub struct FunctionContext<'a, 'b> {
@@ -98,12 +98,12 @@ impl<'a, 'b> FunctionContext<'a, 'b> {
                 match symbol {
                     // Only evaluate functions directly
                     // otherwise return value
-                    Value::Function(func) => {
+                    Value::Function(function_index) => {
                         // TODO dont create functioncontext here. Instead, move fc to global context.
                         // A given FC needs to be created only once.
                         // With the FC AND the argument-types we have all needed context to compile a function.
-                        let ctx = func.ctx(&self.ctx);
-                        ctx.eval(&args)
+                        // let ctx = func.ctx(&self.ctx);
+                        self.ctx.eval_symbol(function_index, &args)
                     }
                     // if there are argument supplied to values,
                     // this is definitly and error.
@@ -233,7 +233,7 @@ impl<'a, 'b> FunctionContext<'a, 'b> {
 
             if let Ok(res) = self.info.module.find(name) {
                 for c in res {
-                    candidates.push(Value::Function(c));
+                    candidates.push(Value::Function(c.unique_id()));
                 }
             } else {
                 eprintln!("{name} not found in current module");
@@ -285,7 +285,7 @@ impl<'a, 'b> FunctionContext<'a, 'b> {
                 };
 
                 for c in cs {
-                    candidates.push(Value::Function(c));
+                    candidates.push(Value::Function(c.unique_id()));
                 }
             }
         }

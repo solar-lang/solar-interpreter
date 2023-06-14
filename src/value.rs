@@ -18,7 +18,7 @@ pub enum Value<'a> {
     Float(f64),
     String(GcString),
     FnBuildin(GenericFn<'a>),
-    Function(FunctionInfo<'a>),
+    Function(usize),
 }
 
 impl Value<'_> {
@@ -52,10 +52,8 @@ impl fmt::Display for Value<'_> {
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
             Value::FnBuildin(_) => write!(f, "fun()"),
-            Value::Function(func) => {
-                let name = func.ast.name.value;
-
-                write!(f, "fun {name}()")
+            Value::Function(_) => {
+                write!(f, "fun()")
             }
         }
     }
