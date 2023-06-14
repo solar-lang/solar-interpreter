@@ -1,15 +1,9 @@
 mod context;
-mod function_context;
 mod interpreter;
 
 pub use context::*;
 
-pub use function_context::*;
-use hotel::HotelMap;
-use interpreter::InterpreterContext;
-use solar_parser::ast;
-
-use crate::{project::FindError, value::Value};
+use crate::project::FindError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

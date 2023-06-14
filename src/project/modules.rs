@@ -1,5 +1,4 @@
-use crate::eval::{CompilerContext, FunctionContext};
-use crate::id::{IdModule, SymbolId};
+use crate::id::SymbolId;
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -223,46 +222,4 @@ fn resolve_imports<'a>(
     }
 
     Ok(imports)
-}
-
-/// Context containing all needed information
-/// for evalutating a specific function
-#[derive(Debug, Clone, Copy)]
-// TODO remove
-pub struct FunctionInfo<'a> {
-    /// Information about the file,
-    /// such as the files ast, filename, and
-    /// the import table.
-    pub file_info: &'a FileInfo<'a>,
-
-    /// Info about the module this file can be found in.
-    /// Needed to resolve symbols within the function.
-    pub module: &'a Module<'a>,
-
-    /// AST of the function
-    pub ast: &'a ast::Function<'a>,
-}
-
-impl<'a> FunctionInfo<'a> {
-    pub fn new(
-        file_info: &'a FileInfo<'a>,
-        module: &'a Module<'a>,
-        ast: &'a ast::Function<'a>,
-    ) -> Self {
-        Self {
-            file_info,
-            module,
-            ast,
-        }
-    }
-
-    /// Returns a number uniquely identifying this specific function info.
-    /// Implemented using the memory location of the source codes ast of the function.
-    pub fn unique_id(&self) -> usize {
-        self.ast.span.as_ptr() as usize
-    }
-
-    pub fn ctx<'ctx>(self, ctx: &'ctx CompilerContext<'a>) -> FunctionContext<'ctx, 'a> {
-        FunctionContext { ctx, info: self }
-    }
 }
