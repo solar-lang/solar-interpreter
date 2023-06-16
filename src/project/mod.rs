@@ -87,8 +87,10 @@ impl Dependency {
 
     /// Gives the directory of the library within the local filesystem.
     pub fn dir(&self) -> String {
-        let solar_path = get_solar_path();
-        solar_path + "libraries/" + &self.basepath().join("/")
+        let path = get_solar_path();
+        let path = path + "libraries/";
+
+        path + &self.basepath().join("/")
     }
 
     fn from_key_value(key: &str, value: &str) -> Result<Self, String> {
