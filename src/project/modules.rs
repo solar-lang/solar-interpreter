@@ -1,4 +1,4 @@
-use crate::id::SymbolId;
+use crate::id::{SymbolId, IdItem};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -36,17 +36,56 @@ impl<'a> Module<'a> {
         let mut v = Vec::new();
 
         for (idfile, fileinfo) in self.files.iter().enumerate() {
+            let idfile = idfile as u16;
             let ast = &fileinfo.ast;
             for (iditem, i) in ast.items.iter().enumerate() {
+                let iditem = iditem as u16;
+
                 match i {
                     ast::body::BodyItem::Function(f) if f.name == symbol => {
-                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
+                        v.push((idmodule.to_vec(), idfile, IdItem::Func(iditem)));
                     }
-                    ast::body::BodyItem::TypeDecl(t) if t.name == symbol => {
-                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
+                    ast::body::BodyItem::TypeDecl(t) => {
+                        // e.g. type A
+                        if t.name == symbol {
+                            v.push((idmodule.to_vec(), idfile, IdItem::Type(iditem)));
+                        }
+
+                        // fields become functions e.g. A.a
+                        match t.fields {
+                            ast::EnumOrStructFields::EnumFields(fields) => {
+                                // E.g. type Maybe a = Some a | None
+                                // makes `Some` become a function
+                                // and None:(a) constant
+
+                                for (idfield, f) in fields.iter().enumerate() {
+                                    let idfield = idfield as u16;
+
+                                    if f.name == symbol {
+                                        let sid = (idmodule.to_vec(), idfile, IdItem::Method(iditem, idfield));
+                                        v.push(sid);
+                                    }
+                                }
+                            },
+                            ast::EnumOrStructFields::StructFields(fields) => {
+                                // E.g. type Wrapper a
+                                //      -   value: a
+                                // derives `value(Wrapper) -> a` as a function
+
+                                for (idfield, f) in fields.iter().enumerate() {
+                                    let idfield = idfield as u16;
+
+                                    if f.name == symbol {
+                                        let sid = (idmodule.to_vec(), idfile, IdItem::Method(iditem, idfield));
+                                        v.push(sid);
+                                    }
+                                }
+
+                            },
+                        }
                     }
                     ast::body::BodyItem::Let(l) if l.identifier == symbol => {
-                        v.push((idmodule.to_vec(), idfile as u32, iditem as u32));
+                        v.push((idmodule.to_vec(), idfile, IdItem::GlobalVar(iditem)));
                     }
 
                     _ => continue,
