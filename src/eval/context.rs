@@ -56,7 +56,14 @@ impl<'a> CompilerContext<'a> {
             .expect("IdModule  to be valid");
 
         let fileinfo = module.files.get(file as usize).expect("IdFile to be valid");
-        let item = &fileinfo.ast.items[item as usize];
+
+        use crate::id::IdItem;
+        let item = match item {
+            IdItem::Func(id) => &fileinfo.ast.items[id as usize],
+            IdItem::GlobalVar(id) => &fileinfo.ast.items[id as usize],
+            IdItem::Type(id) => &fileinfo.ast.items[id as usize],
+            IdItem::Method(_typeid, _fieldid) => unimplemented!("accessing derived methods is not yet implemented"),
+        };
 
         (module, fileinfo, item)
     }
@@ -413,7 +420,6 @@ impl<'a> CompilerContext<'a> {
 
                 // candidates from this module
                 let Ok(cs) = module.find(symbol, &idmodule) else {
-                    // eprintln!("haven't found {symbol} in {idmodule:?}");
                     continue;
                 };
 

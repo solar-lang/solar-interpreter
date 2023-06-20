@@ -52,7 +52,7 @@ impl<'a> Module<'a> {
                         }
 
                         // fields become functions e.g. A.a
-                        match t.fields {
+                        match &t.fields {
                             ast::EnumOrStructFields::EnumFields(fields) => {
                                 // E.g. type Maybe a = Some a | None
                                 // makes `Some` become a function

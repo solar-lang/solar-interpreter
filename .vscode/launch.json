@@ -20,7 +20,8 @@
                 }
             },
             "args": ["./samples/3-proj"],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "env": {"SOLAR_PATH": "./solarpath"}
         },
         {
             "type": "lldb",
