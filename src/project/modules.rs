@@ -1,4 +1,4 @@
-use crate::id::{SymbolId, IdItem};
+use crate::id::{IdItem, SymbolId};
 use crate::util::IdPath;
 use solar_parser::ast::import::Selection;
 use solar_parser::{ast, Ast};
@@ -62,11 +62,15 @@ impl<'a> Module<'a> {
                                     let idfield = idfield as u16;
 
                                     if f.name == symbol {
-                                        let sid = (idmodule.to_vec(), idfile, IdItem::Method(iditem, idfield));
+                                        let sid = (
+                                            idmodule.to_vec(),
+                                            idfile,
+                                            IdItem::Method(iditem, idfield),
+                                        );
                                         v.push(sid);
                                     }
                                 }
-                            },
+                            }
                             ast::EnumOrStructFields::StructFields(fields) => {
                                 // E.g. type Wrapper a
                                 //      -   value: a
@@ -76,12 +80,15 @@ impl<'a> Module<'a> {
                                     let idfield = idfield as u16;
 
                                     if f.name == symbol {
-                                        let sid = (idmodule.to_vec(), idfile, IdItem::Method(iditem, idfield));
+                                        let sid = (
+                                            idmodule.to_vec(),
+                                            idfile,
+                                            IdItem::Method(iditem, idfield),
+                                        );
                                         v.push(sid);
                                     }
                                 }
-
-                            },
+                            }
                         }
                     }
                     ast::body::BodyItem::Let(l) if l.identifier == symbol => {

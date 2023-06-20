@@ -62,7 +62,9 @@ impl<'a> CompilerContext<'a> {
             IdItem::Func(id) => &fileinfo.ast.items[id as usize],
             IdItem::GlobalVar(id) => &fileinfo.ast.items[id as usize],
             IdItem::Type(id) => &fileinfo.ast.items[id as usize],
-            IdItem::Method(_typeid, _fieldid) => unimplemented!("accessing derived methods is not yet implemented"),
+            IdItem::Method(_typeid, _fieldid) => {
+                unimplemented!("accessing derived methods is not yet implemented")
+            }
         };
 
         (module, fileinfo, item)
