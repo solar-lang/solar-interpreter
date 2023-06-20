@@ -1,33 +1,16 @@
-use hotel::HotelMap;
-use solar_parser::ast;
-use solar_parser::ast::body::BodyItem;
-use solar_parser::ast::expr::FullExpression;
-
-use crate::id::IdModule;
-use crate::id::SymbolId;
-use crate::id::SSID;
-use crate::project::FileInfo;
-use crate::project::Module;
-
-use crate::project::SymbolResolver;
-use crate::types::Type;
-use crate::util;
-
-use crate::project::FindError;
-use crate::util::IdPath;
-use crate::util::Scope;
-
 use super::interpreter::InterpreterContext;
 use super::EvalError;
-
-use crate::value::Value;
-
-use std::sync::Mutex;
-
-use crate::project::GlobalModules;
-
-use crate::project::ProjectInfo;
+use crate::{
+    id::{IdModule, SymbolId, SSID},
+    project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
+    types::Type,
+    util::{self, IdPath, Scope},
+    value::Value,
+};
+use hotel::HotelMap;
+use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
 use std::io::{Read, Write};
+use std::sync::Mutex;
 
 /// Struct that gets created once globally
 /// Containing Information about all Modules, ASTs, Projects
