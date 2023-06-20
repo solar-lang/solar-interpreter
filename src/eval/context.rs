@@ -1,13 +1,16 @@
+use hotel::HotelMap;
 use solar_parser::ast;
 use solar_parser::ast::body::BodyItem;
 use solar_parser::ast::expr::FullExpression;
 
 use crate::id::IdModule;
 use crate::id::SymbolId;
+use crate::id::SSID;
 use crate::project::FileInfo;
 use crate::project::Module;
 
 use crate::project::SymbolResolver;
+use crate::types::Type;
 use crate::util;
 
 use crate::project::FindError;
@@ -34,6 +37,9 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
+    /// Contains all Type Information.
+    pub types: HotelMap<SSID, Type>,
+
     /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
 }
@@ -46,6 +52,7 @@ impl<'a> CompilerContext<'a> {
             project_info,
             module_info,
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
+            types: Default::default(),
         }
     }
 

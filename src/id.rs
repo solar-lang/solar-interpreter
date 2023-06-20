@@ -2,10 +2,13 @@ use crate::util::IdPath;
 
 pub type SymbolId = (IdModule, IdFile, IdItem);
 
+/// Static SymbolId
+pub type SSID = (SymbolId, Vec<TypeId>);
+
 pub type IdModule = IdPath;
 pub type IdFile = u16;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Hash, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub enum IdItem {
     // Variable
     GlobalVar(u16),
@@ -20,3 +23,5 @@ pub enum IdItem {
     /// Note, enum variants MAY be constant
     Method(u16, u16),
 }
+
+pub type TypeId = u32;

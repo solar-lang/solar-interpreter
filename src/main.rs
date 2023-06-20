@@ -2,6 +2,7 @@
 mod eval;
 pub mod id;
 mod project;
+mod types;
 mod util;
 mod value;
 
