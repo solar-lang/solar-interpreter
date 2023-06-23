@@ -6,7 +6,29 @@ use crate::id::{IdModule, TypeId};
 pub struct Type {
     /// Module used for looking up functions associated with this type
     module: IdModule,
-    size_in_bytes: u16,
-    // Types don't really need fieldnames I guess
-    fields: Vec<TypeId>,
+    size_in_bytes: u32,
+    field_layout: Vec<(String, u32, TypeId)>,
+}
+
+impl Type {
+    /// returns the offset, length and TypeId of the given field
+    pub fn get_field(&self, name: &str) -> Result<(u32, u32, TypeId), ()> {
+        for (index, (n, offset, id)) in self.field_layout.iter().enumerate() {
+            if n != name {
+                continue;
+            }
+
+            let next = if index == self.field_layout.len() {
+                self.size_in_bytes
+            } else {
+                self.field_layout[index].1
+            };
+
+            let len = next - offset;
+
+            return Ok((*offset, len, *id));
+        }
+
+        Err(())
+    }
 }

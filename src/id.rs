@@ -24,4 +24,4 @@ pub enum IdItem {
     Method(u16, u16),
 }
 
-pub type TypeId = u32;
+pub type TypeId = u64;
