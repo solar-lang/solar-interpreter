@@ -134,6 +134,9 @@ impl<'a> CompilerContext<'a> {
             BodyItem::TypeDecl(_ty) => {
                 unimplemented!("generate functions from types to create types.")
             }
+            BodyItem::BuildinTypeDecl(_ty) => {
+                unimplemented!("no fields on buildin types")
+            }
         }
     }
 
