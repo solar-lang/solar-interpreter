@@ -30,12 +30,16 @@ pub struct CompilerContext<'a> {
 impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
-    pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
+    pub fn with_default_io(
+        project_info: &'a ProjectInfo,
+        module_info: GlobalModules<'a>,
+        types: HotelMap<SSID, Type>,
+    ) -> Self {
         CompilerContext {
             project_info,
             module_info,
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
-            types: Default::default(),
+            types,
         }
     }
 

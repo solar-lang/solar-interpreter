@@ -1,3 +1,5 @@
+mod buildin;
+
 use crate::id::{IdModule, TypeId};
 
 /// Represents a concrete, static type
