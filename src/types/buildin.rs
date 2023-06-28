@@ -8,8 +8,8 @@ use crate::{
 
 use super::Type;
 
-#[derive(Default)]
-struct BuildinTypeID {
+#[derive(Default, Debug)]
+pub struct BuildinTypeID {
     bool: u8,
 
     int8: u8,
@@ -27,7 +27,7 @@ struct BuildinTypeID {
 }
 
 // Only the stdlibary is allowed to declare buildin types!
-fn link_buildin_types(
+pub fn link_buildin_types(
     projects: &ProjectInfo,
     modules: &GlobalModules,
 ) -> (HotelMap<SSID, Type>, BuildinTypeID) {

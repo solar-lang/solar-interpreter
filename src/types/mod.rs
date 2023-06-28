@@ -1,4 +1,4 @@
-mod buildin;
+pub mod buildin;
 
 use crate::id::{IdModule, TypeId};
 
