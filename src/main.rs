@@ -11,13 +11,9 @@ use core::panic;
 
 use eval::CompilerContext;
 
-use hotel::HotelMap;
-use id::SSID;
-use project::{read_all_projects, read_modules, GlobalModules, ProjectInfo};
-use solar_parser::ast::body::BodyItem;
-use types::Type;
+use project::{read_all_projects, read_modules};
 
-use crate::{id::IdItem, types::buildin::link_buildin_types};
+use crate::types::buildin::link_buildin_types;
 
 use crate::eval::CompilerContext;
 
