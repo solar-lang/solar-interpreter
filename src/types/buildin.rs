@@ -15,15 +15,15 @@ pub struct BuildinTypeID {
     int8: u8,
     int16: u8,
     int32: u8,
-    int64: u8,
+    int: u8,
 
     uint8: u8,
     uint16: u8,
     uint32: u8,
-    uint64: u8,
+    uint: u8,
 
     float32: u8,
-    float64: u8,
+    float: u8,
 }
 
 // Only the stdlibary is allowed to declare buildin types!
@@ -62,17 +62,17 @@ pub fn link_buildin_types(
                     let id = tys.insert(ssid, ty) as u8;
 
                     match item.name.value {
-                        "bool" => ids.bool = id,
-                        "int8" => ids.int8 = id,
-                        "int16" => ids.int16 = id,
-                        "int32" => ids.int32 = id,
-                        "int64" => ids.int64 = id,
-                        "uint8" => ids.uint8 = id,
-                        "uint16" => ids.uint16 = id,
-                        "uint32" => ids.uint32 = id,
-                        "uint64" => ids.uint64 = id,
-                        "float32" => ids.float32 = id,
-                        "float64" => ids.float64 = id,
+                        "Bool" => ids.bool = id,
+                        "Int8" => ids.int8 = id,
+                        "Int16" => ids.int16 = id,
+                        "Int32" => ids.int32 = id,
+                        "Int" => ids.int = id,
+                        "Uint8" => ids.uint8 = id,
+                        "Uint16" => ids.uint16 = id,
+                        "Uint32" => ids.uint32 = id,
+                        "Uint" => ids.uint = id,
+                        "Float32" => ids.float32 = id,
+                        "Float" => ids.float = id,
                         x => panic!("unrecognized buildin: {x}"),
                     }
                 }

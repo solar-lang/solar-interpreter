@@ -1,12 +1,12 @@
 
-buildin_type bool
-buildin_type int8
-buildin_type int16
-buildin_type int32
-buildin_type int64
-buildin_type uint8
-buildin_type uint16
-buildin_type uint32
-buildin_type uint64
-buildin_type float32
-buildin_type float64,
+buildin_type Bool
+buildin_type Int8
+buildin_type Int16
+buildin_type Int32
+buildin_type Int
+buildin_type Uint8
+buildin_type Uint16
+buildin_type Uint32
+buildin_type Uint
+buildin_type Float32
+buildin_type Float,
