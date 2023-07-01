@@ -20,7 +20,7 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
-    /// Contains all Type Information.
+    /// Contains static, concrete Type Information.
     pub types: HotelMap<SSID, Type>,
 
     /// Contains runtime configurations, like stdin and stdout
@@ -30,16 +30,12 @@ pub struct CompilerContext<'a> {
 impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
-    pub fn with_default_io(
-        project_info: &'a ProjectInfo,
-        module_info: GlobalModules<'a>,
-        types: HotelMap<SSID, Type>,
-    ) -> Self {
+    pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
         CompilerContext {
             project_info,
             module_info,
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
-            types,
+            types: Default::default(),
         }
     }
 

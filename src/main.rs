@@ -22,11 +22,8 @@ fn main() {
     let project_info = read_all_projects(&fsroot).expect("read in solar project and dependencies");
     let modules = read_modules(&project_info).expect("open and parse solar files");
 
-    let (buildin_types, buildinids) = link_buildin_types(&project_info, &modules);
+    let ctx = CompilerContext::with_default_io(&project_info, modules);
 
-    dbg!(buildinids);
-
-    let ctx = CompilerContext::with_default_io(&project_info, modules, buildin_types);
     let f_main = ctx.find_target_main().expect("find main function");
 
     let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
