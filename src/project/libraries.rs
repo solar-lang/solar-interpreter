@@ -112,7 +112,7 @@ impl Project {
             // and remember for each Ast the file name.
             let mut source_code = std::fs::read_to_string(path).expect("read solar file");
             source_code.shrink_to_fit();
-            let content = source_code.leak();
+            let content = leak_string(source_code);
 
             let fileinfo = FileInfo::from_code(
                 path.to_str().expect("read filename").to_string(),
@@ -128,4 +128,11 @@ impl Project {
 
         Ok(map)
     }
+}
+
+fn leak_string(s: String) -> &'static str {
+    let b = s.into_boxed_str();
+    let b = Box::leak(b);
+
+    unsafe { std::mem::transmute(b) }
 }
