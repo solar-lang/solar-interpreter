@@ -6,9 +6,9 @@ mod types;
 mod util;
 mod value;
 
-use eval::CompilerContext;
-
 use project::{read_all_projects, read_modules};
+
+use crate::eval::CompilerContext;
 
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
