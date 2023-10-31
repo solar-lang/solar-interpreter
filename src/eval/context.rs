@@ -65,12 +65,12 @@ impl<'a> CompilerContext<'a> {
         let path = util::target_id();
         let module = self.module_info.get(&path).unwrap();
 
-        let mut candidates = module.find("main", &util::target_id())?;
+        let mut candidates = module.find("main", &path)?;
 
         if candidates.len() != 1 {
             return Err(FindError::TooMany {
                 symbol: "main".to_string(),
-                module: path.clone(),
+                module: path,
             });
         }
 
