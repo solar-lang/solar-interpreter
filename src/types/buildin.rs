@@ -27,9 +27,7 @@ pub struct BuildinTypeID {
 }
 
 // Only the stdlibary is allowed to declare buildin types!
-pub fn link_buildin_types(
-    modules: &GlobalModules,
-) -> (HotelMap<SSID, Type>, BuildinTypeID) {
+pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, BuildinTypeID) {
     let mut tys = HotelMap::new();
     let mut ids = BuildinTypeID::default();
 

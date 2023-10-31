@@ -1,6 +1,6 @@
 mod context;
-mod interpreter;
 mod error;
+mod interpreter;
 
 pub use context::*;
 pub use error::*;

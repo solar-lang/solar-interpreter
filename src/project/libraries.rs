@@ -4,8 +4,8 @@ use super::Module;
 /// and resolving their imports.
 use crate::project::{FileInfo, SolarConfig};
 use crate::util::IdPath;
-use std::collections::HashMap;
 use anyhow::Context;
+use std::collections::HashMap;
 use walkdir::WalkDir;
 
 /// Contains information on a project,
@@ -70,9 +70,9 @@ impl Project {
 
         for entry in WalkDir::new(&self.fsroot) {
             let Ok(entry) = entry else {
-                    eprintln!("error walking directory: {entry:?}");
-                    continue;
-                };
+                eprintln!("error walking directory: {entry:?}");
+                continue;
+            };
 
             if !entry.file_type().is_file() {
                 continue;
@@ -117,12 +117,8 @@ impl Project {
 
             let path = path.to_str().expect("read filename").to_string();
             let context = format!("reading file {path}");
-            let fileinfo = FileInfo::from_code(
-                path,
-                &self.dep_map,
-                &self.basepath,
-                content,
-            ).context(context)?;
+            let fileinfo = FileInfo::from_code(path, &self.dep_map, &self.basepath, content)
+                .context(context)?;
 
             map.entry(idmodule)
                 .or_insert(Module::new(project_id))
