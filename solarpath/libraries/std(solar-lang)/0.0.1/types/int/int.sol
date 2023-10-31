@@ -13,4 +13,4 @@ buildin_type Uint
 buildin_type Float32
 
 # the standard Float type has 64 Bits
-buildin_type Float,
+buildin_type Float
