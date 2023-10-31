@@ -5,6 +5,7 @@ use super::Module;
 use crate::project::{FileInfo, SolarConfig};
 use crate::util::IdPath;
 use std::collections::HashMap;
+use anyhow::Context;
 use walkdir::WalkDir;
 
 /// Contains information on a project,
@@ -114,12 +115,14 @@ impl Project {
             source_code.shrink_to_fit();
             let content = leak_string(source_code);
 
+            let path = path.to_str().expect("read filename").to_string();
+            let context = format!("reading file {path}");
             let fileinfo = FileInfo::from_code(
-                path.to_str().expect("read filename").to_string(),
+                path,
                 &self.dep_map,
                 &self.basepath,
                 content,
-            )?;
+            ).context(context)?;
 
             map.entry(idmodule)
                 .or_insert(Module::new(project_id))

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::Context;
 use hotel::HotelMap;
 
 use crate::util::{self, IdPath};
@@ -45,7 +46,9 @@ pub fn read_modules(projects: &ProjectInfo) -> anyhow::Result<GlobalModules<'_>>
     let mut modules = HashMap::new();
 
     for (project_id, project) in projects.iter_values() {
-        let symbol_table = project.read_all(project_id)?;
+        let symbol_table = project
+            .read_all(project_id)
+            .context(format!("reading project {}", project.fsroot))?;
 
         for (sym, path) in symbol_table.into_iter() {
             modules.insert(sym, path);
