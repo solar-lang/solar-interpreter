@@ -3,7 +3,10 @@ use super::EvalError;
 use crate::{
     id::{IdModule, SymbolId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
-    types::Type,
+    types::{
+        buildin::{link_buildin_types, BuildinTypeID},
+        Type,
+    },
     util::{self, IdPath, Scope},
     value::Value,
 };
@@ -20,6 +23,7 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
+    pub buildin_id: BuildinTypeID,
     /// Contains static, concrete Type Information.
     pub types: HotelMap<SSID, Type>,
 
@@ -31,11 +35,14 @@ impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
     pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
+        let (types, buildin_id) = link_buildin_types(project_info, &module_info);
+
         CompilerContext {
             project_info,
             module_info,
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
-            types: Default::default(),
+            types,
+            buildin_id,
         }
     }
 
