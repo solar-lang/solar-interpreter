@@ -21,4 +21,6 @@ fn main() {
     let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
 
     eprintln!("\n{result:?}");
+
+    eprintln!("\n{:?}", ctx.types);
 }
