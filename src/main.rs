@@ -10,14 +10,10 @@ use project::{read_all_projects, read_modules};
 
 use eval::CompilerContext;
 
-use crate::types::buildin::link_buildin_types;
-
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
     let project_info = read_all_projects(&fsroot).expect("read in solar project and dependencies");
     let modules = read_modules(&project_info).expect("open and parse solar files");
-
-    let (_, _) = link_buildin_types(&project_info, &modules);
 
     let ctx = CompilerContext::with_default_io(&project_info, modules);
 

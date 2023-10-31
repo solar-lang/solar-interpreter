@@ -35,7 +35,7 @@ impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
     pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
-        let (types, buildin_id) = link_buildin_types(project_info, &module_info);
+        let (types, buildin_id) = link_buildin_types(&module_info);
 
         CompilerContext {
             project_info,

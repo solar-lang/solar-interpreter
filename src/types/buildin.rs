@@ -3,7 +3,7 @@ use solar_parser::ast::body::BodyItem;
 
 use crate::{
     id::{IdItem, SSID},
-    project::{GlobalModules, ProjectInfo},
+    project::GlobalModules,
 };
 
 use super::Type;
@@ -28,7 +28,6 @@ pub struct BuildinTypeID {
 
 // Only the stdlibary is allowed to declare buildin types!
 pub fn link_buildin_types(
-    projects: &ProjectInfo,
     modules: &GlobalModules,
 ) -> (HotelMap<SSID, Type>, BuildinTypeID) {
     let mut tys = HotelMap::new();
@@ -37,7 +36,7 @@ pub fn link_buildin_types(
     // Find std library
     let stdpaths = modules
         .keys()
-        .filter(|path| path.starts_with(&["std".to_string()]));
+        .filter(|path| path.starts_with(&["std(solar-lang)".to_string()]));
     for module in stdpaths {
         let std = modules.get(module).unwrap();
 
