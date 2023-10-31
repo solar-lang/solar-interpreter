@@ -7,6 +7,25 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "launch 4",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=solar-interpreter",
+                    "--package=solar-interpreter"
+                ],
+                "filter": {
+                    "name": "solar-interpreter",
+                    "kind": "bin"
+                }
+            },
+            "args": ["./samples/4"],
+            "cwd": "${workspaceFolder}",
+            "env": {"SOLAR_PATH": "./solarpath"}
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "Debug executable 'solar-interpreter'",
             "cargo": {
                 "args": [

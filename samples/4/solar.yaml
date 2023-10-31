@@ -1,0 +1,6 @@
+name: doodle
+version: 0.1.0
+author: Nils Martel
+
+dependencies:
+  std(solar-lang): 0.0.1

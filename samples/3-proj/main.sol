@@ -1,5 +1,6 @@
 # TODO with types coming, this line will be redundant 
 use @std.types.concat
+use @std.types.string.String
 use @std.io.(println, readline)
 
 fun main() =
