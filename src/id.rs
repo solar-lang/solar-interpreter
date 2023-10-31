@@ -21,6 +21,8 @@ pub enum IdItem {
 
     /// Describes a auto-derived Method in terms of referencing the type and specific field OR Enum and specific Variant
     /// Note, enum variants MAY be constant
+    /// Structure:
+    /// (Position of Item in File,  Position of Function in Item)
     Method(u16, u16),
 }
 
