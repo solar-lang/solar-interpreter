@@ -20,6 +20,19 @@ fn main() {
 
     let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
 
+    /* TODO
+        There's a need now, to resolve types.
+        That means filling the CompilerContext::types,
+        which in turn yields TypeIDs, that we can use.
+        TypeIDs are required to build SSIDs.
+        If we have SSIDs, we can create a HotelMap to yield
+        concrete function implementations.
+        E.g. Function(..Args) -> AST
+        and further we can then derive concrete ByteCode already! 
+        E.g. Function(..Args) -> ByteCode
+    */
+
+
     eprintln!("\n{result:?}");
 
     eprintln!("\n{:?}", ctx.types);
