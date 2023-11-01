@@ -19,6 +19,7 @@ fn main() {
 
     let f_main = ctx.find_target_main().expect("find main function");
 
+    // TODO instead call resolve_symbol(f_main, &[]) -> FunctionID
     let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
 
     /* TODO
