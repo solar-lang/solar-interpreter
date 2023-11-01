@@ -1,10 +1,11 @@
 use super::interpreter::InterpreterContext;
-use super::EvalError;
+use super::CompilationError;
 use crate::{
-    id::{IdModule, SymbolId, SSID},
+    compile::StaticExpression,
+    id::{FunctionId, IdModule, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{
-        buildin::{link_buildin_types, BuildinTypeID},
+        buildin::{link_buildin_types, BuildinTypeId},
         Type,
     },
     util::{self, IdPath, Scope},
@@ -13,7 +14,7 @@ use crate::{
 use hotel::HotelMap;
 use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
 use std::io::{Read, Write};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
 /// Containing Information about all Modules, ASTs, Projects
@@ -23,9 +24,12 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
-    pub buildin_id: BuildinTypeID,
+    pub buildin_id: BuildinTypeId,
+
     /// Contains static, concrete Type Information.
-    pub types: HotelMap<SSID, Type>,
+    pub types: RwLock<HotelMap<SSID, Type>>,
+
+    pub functions: RwLock<HotelMap<SSID, StaticExpression>>,
 
     /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
@@ -36,12 +40,17 @@ impl<'a> CompilerContext<'a> {
     /// propagated
     pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
         let (types, buildin_id) = link_buildin_types(&module_info);
+        let types = types.into();
+
+        // TODO fill with buildin functions
+        let functions = Default::default();
 
         CompilerContext {
             project_info,
             module_info,
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
             types,
+            functions,
             buildin_id,
         }
     }
@@ -102,13 +111,13 @@ struct Lookup<'a> {
 
 /// Evaluation related stuff.
 impl<'a> CompilerContext<'a> {
-    // TODO rename to resolve symbol
-    // and build up static table
-    pub fn eval_symbol(
+    /// Main entrypoint for compiling a function.
+    /// Will recursively compile all downstream functions, that are getting called within the AST.
+    pub fn compile_symbol(
         &'a self,
         symbol_id: SymbolId,
-        args: &[Value<'a>],
-    ) -> Result<Value<'a>, EvalError> {
+        args: &[TypeId],
+    ) -> Result<FunctionId, CompilationError> {
         let (module, fileinfo, item) = self.get_symbol(symbol_id.clone());
 
         let lookup = Lookup {
@@ -121,7 +130,7 @@ impl<'a> CompilerContext<'a> {
             BodyItem::Function(func) => self.eval(func, lookup, args),
             BodyItem::Let(var) => {
                 if !args.is_empty() {
-                    return Err(EvalError::CallingVariable {
+                    return Err(CompilationError::CallingVariable {
                         identifer: var.identifier.span.to_string(),
                         file: fileinfo.filename.to_string(),
                     });
@@ -149,7 +158,7 @@ impl<'a> CompilerContext<'a> {
         ast: &ast::Function,
         lookup: Lookup,
         args: &[Value<'a>],
-    ) -> Result<Value<'a>, EvalError> {
+    ) -> Result<Value<'a>, CompilationError> {
         let mut scope = Scope::new();
 
         // TODO what to do with the type here?
@@ -165,7 +174,7 @@ impl<'a> CompilerContext<'a> {
         expr: &FullExpression,
         lookup: Lookup,
         scope: &mut Scope<'a>,
-    ) -> Result<Value, EvalError> {
+    ) -> Result<Value, CompilationError> {
         match expr {
             FullExpression::Let(expr) => {
                 // Insert all let bindings into scope
@@ -201,7 +210,7 @@ impl<'a> CompilerContext<'a> {
         expr: &ast::expr::Expression,
         lookup: Lookup,
         scope: &mut Scope<'a>,
-    ) -> Result<Value<'a>, EvalError> {
+    ) -> Result<Value<'a>, CompilationError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
                 // First, evaluate all arguments
@@ -242,7 +251,7 @@ impl<'a> CompilerContext<'a> {
                     }
                     // if there are argument supplied to values,
                     // this is definitly and error.
-                    v if !args.is_empty() => Err(EvalError::TypeError {
+                    v if !args.is_empty() => Err(CompilationError::TypeError {
                         got: format!("{v}"),
                         wanted: "fun(...) -> ...".to_string(),
                     }),
@@ -258,7 +267,7 @@ impl<'a> CompilerContext<'a> {
         expr: &ast::expr::Value,
         lookup: Lookup,
         scope: &mut Scope<'a>,
-    ) -> Result<Value, EvalError> {
+    ) -> Result<Value, CompilationError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
         match expr {
@@ -348,7 +357,7 @@ impl<'a> CompilerContext<'a> {
         }: Lookup,
         // TODO type of first argument is also relevant! Add as argument
         scope: &Scope<'a>,
-    ) -> Result<Vec<Value<'a>>, EvalError> {
+    ) -> Result<Vec<Value<'a>>, CompilationError> {
         // TODO check if it was found before, and return compiled version
 
         // if the length of the path is > 1, it's guaranteed looking up an import.
@@ -445,7 +454,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         func: &ast::expr::FunctionCall,
         args: &[Value<'a>],
-    ) -> Option<Result<Value<'a>, EvalError>> {
+    ) -> Option<Result<Value<'a>, CompilationError>> {
         if func.function_name.value.len() != 1 {
             return None;
         }
@@ -465,7 +474,7 @@ impl<'a> CompilerContext<'a> {
             "readline" => self.buildin_readline(args),
             "print" => self.buildin_print(args),
 
-            _ => Err(EvalError::WrongBuildin {
+            _ => Err(CompilationError::WrongBuildin {
                 found: fname.to_string(),
             }),
         };
@@ -473,14 +482,14 @@ impl<'a> CompilerContext<'a> {
         Some(res)
     }
 
-    pub(crate) fn buildin_str_concat(&self, args: &[Value]) -> Result<Value, EvalError> {
+    pub(crate) fn buildin_str_concat(&self, args: &[Value]) -> Result<Value, CompilationError> {
         let mut s = String::new();
 
         for arg in args {
             match arg {
                 Value::String(arg) => s.push_str(arg),
                 _ => {
-                    return Err(EvalError::TypeError {
+                    return Err(CompilationError::TypeError {
                         got: arg.type_as_str().to_string(),
                         wanted: "String".to_string(),
                     })
@@ -491,7 +500,7 @@ impl<'a> CompilerContext<'a> {
         Ok(s.into())
     }
 
-    pub(crate) fn buildin_print(&self, args: &[Value]) -> Result<Value, EvalError> {
+    pub(crate) fn buildin_print(&self, args: &[Value]) -> Result<Value, CompilationError> {
         // allowed overloadings:
         // [String]
         // []
@@ -505,7 +514,10 @@ impl<'a> CompilerContext<'a> {
         Ok(Value::Void)
     }
 
-    pub(crate) fn buildin_identity(&'a self, args: &[Value<'a>]) -> Result<Value<'a>, EvalError> {
+    pub(crate) fn buildin_identity(
+        &'a self,
+        args: &[Value<'a>],
+    ) -> Result<Value<'a>, CompilationError> {
         // only the identiy overloading is implemented for now.
         if args.len() != 1 {
             panic!("& is only implemented with 1 argument");
@@ -514,7 +526,7 @@ impl<'a> CompilerContext<'a> {
         Ok(args[0].clone())
     }
 
-    pub(crate) fn buildin_readline(&self, args: &[Value]) -> Result<Value, EvalError> {
+    pub(crate) fn buildin_readline(&self, args: &[Value]) -> Result<Value, CompilationError> {
         let mut iio = self.interpreter_ctx.lock().expect("lock interpreter io");
 
         // allowed overloadings:

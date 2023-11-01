@@ -9,7 +9,7 @@ use crate::{
 use super::Type;
 
 #[derive(Default, Debug)]
-pub struct BuildinTypeID {
+pub struct BuildinTypeId {
     bool: u8,
 
     int8: u8,
@@ -27,9 +27,9 @@ pub struct BuildinTypeID {
 }
 
 // Only the stdlibary is allowed to declare buildin types!
-pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, BuildinTypeID) {
+pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, BuildinTypeId) {
     let mut tys = HotelMap::new();
-    let mut ids = BuildinTypeID::default();
+    let mut ids = BuildinTypeId::default();
 
     // Find std library
     let stdpaths = modules

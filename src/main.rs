@@ -1,4 +1,5 @@
 // #![feature(string_leak)]
+pub mod compile;
 mod eval;
 pub mod id;
 mod project;
@@ -20,7 +21,7 @@ fn main() {
     let f_main = ctx.find_target_main().expect("find main function");
 
     // TODO instead call resolve_symbol(f_main, &[]) -> FunctionID
-    let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
+    let function_id = ctx.compile_symbol(f_main, &[]).expect("compile code");
 
     /* TODO
         There's a need now, to resolve types.
@@ -34,7 +35,7 @@ fn main() {
         E.g. Function(..Args) -> ByteCode
     */
 
-    eprintln!("\n{result:?}");
+    eprintln!("\n{function_id:?}");
 
     eprintln!("\n{:?}", ctx.types);
 }

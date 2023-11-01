@@ -26,4 +26,5 @@ pub enum IdItem {
     Method(u16, u16),
 }
 
-pub type TypeId = u64;
+pub type TypeId = usize;
+pub type FunctionId = usize;

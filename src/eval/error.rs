@@ -2,7 +2,7 @@ use crate::project::FindError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum EvalError {
+pub enum CompilationError {
     IntConversion(#[from] std::num::ParseIntError),
     FindError(#[from] FindError),
     WrongBuildin {
@@ -19,7 +19,7 @@ pub enum EvalError {
     },
 }
 
-impl std::fmt::Display for EvalError {
+impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::IntConversion(e) => e.fmt(f),
