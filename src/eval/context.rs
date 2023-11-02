@@ -16,6 +16,8 @@ use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
 use std::io::{Read, Write};
 use std::sync::{Mutex, RwLock};
 
+type TScope = Scope<TypeId>;
+
 /// Struct that gets created once globally
 /// Containing Information about all Modules, ASTs, Projects
 pub struct CompilerContext<'a> {
@@ -127,8 +129,9 @@ impl<'a> CompilerContext<'a> {
         };
 
         match item {
-            BodyItem::Function(func) => self.eval(func, lookup, args),
+            BodyItem::Function(func) => self.compile(func, lookup, &(symbol_id, args.to_vec())),
             BodyItem::Let(var) => {
+                // TODO there are no arguments to a global let. the let itself has an expression assigned to it.
                 if !args.is_empty() {
                     return Err(CompilationError::CallingVariable {
                         identifer: var.identifier.span.to_string(),
@@ -152,41 +155,69 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
-    /// Evaluate a function,
-    fn eval(
+    /// Compile a function,
+    fn compile(
         &'a self,
         ast: &ast::Function,
         lookup: Lookup,
-        args: &[Value<'a>],
-    ) -> Result<Value<'a>, CompilationError> {
-        let mut scope = Scope::new();
+        ssid: &SSID,
+    ) -> Result<(FunctionId, TypeId), CompilationError> {
+        // First, check if function is already compiled
+        {
+            let fnstore = self
+                .functions
+                .read()
+                .expect("aquire readlock for functions");
 
-        // TODO what to do with the type here?
-        for ((ident, _ty), val) in ast.args.iter().zip(args) {
-            scope.push(ident.value, val.clone());
+            if let Some((fnid, (_, typeid))) = fnstore.get_by_key(&ssid) {
+                return Ok((fnid, *typeid));
+            }
         }
 
-        self.eval_full_expression(&ast.body, lookup, &mut scope)
+        let mut scope = Scope::new();
+
+        let args = ssid.1;
+        for ((ident, _ty), static_type) in ast.args.iter().zip(args) {
+            // TODO what to do with the arguments type here?
+            // if _ty != static_type { return Error }
+            scope.push(ident.value, static_type);
+        }
+
+        // TODO there's a problem here.
+        // Actually we would like to reserve a spot for our function now.
+        // otherwise we can't do recursion.
+
+        // compile the static expression
+        let (s, t) = self.compile_full_expression(&ast.body, lookup, &mut scope)?;
+
+        // save function
+        let id = self
+            .functions
+            .write()
+            .expect("store function")
+            .insert(ssid, (s, t));
+
+        Ok((id, t))
     }
 
-    fn eval_full_expression(
+    fn compile_full_expression(
         &'a self,
         expr: &FullExpression,
         lookup: Lookup,
-        scope: &mut Scope<'a>,
-    ) -> Result<Value, CompilationError> {
+        scope: &mut TScope,
+    ) -> Result<StaticExpression, CompilationError> {
         match expr {
             FullExpression::Let(expr) => {
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
-                    let value = self.eval_full_expression(value, lookup.clone(), scope)?;
-                    scope.push(ident.value, value)
+                    let value = self.compile_full_expression(value, lookup.clone(), scope)?;
+                    scope.push(ident.value, value);
                 }
 
                 // We now have readied the scope and are able to evaluate the body
 
-                let v = self.eval_full_expression(&expr.body, lookup, scope);
+                let v = self.compile_full_expression(&expr.body, lookup, scope);
 
                 // Now we remove the let bindings from the scope
                 for _ in &expr.definitions {
@@ -196,21 +227,21 @@ impl<'a> CompilerContext<'a> {
                 v
             }
 
-            FullExpression::Expression(ref expr) => self.eval_minor_expr(expr, lookup, scope),
+            FullExpression::Expression(ref expr) => self.compile_minor_expr(expr, lookup, scope),
             FullExpression::Concat(expr) => {
                 let e = expr.to_expr();
-                self.eval_minor_expr(&e, lookup, scope)
+                self.compile_minor_expr(&e, lookup, scope)
             }
             expr => panic!("Unexpected type of expression: {expr:#?}"),
         }
     }
 
-    fn eval_minor_expr(
+    fn compile_minor_expr(
         &'a self,
         expr: &ast::expr::Expression,
         lookup: Lookup,
-        scope: &mut Scope<'a>,
-    ) -> Result<Value<'a>, CompilationError> {
+        scope: &mut TScope,
+    ) -> Result<StaticExpression, CompilationError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
                 // First, evaluate all arguments
@@ -313,7 +344,7 @@ impl<'a> CompilerContext<'a> {
                 }
                 let expr = &expr.values[0];
 
-                self.eval_full_expression(expr, lookup, scope)
+                self.compile_full_expression(expr, lookup, scope)
             }
             _ => panic!("evaluation not ready for \n{expr:#?}"),
         }
