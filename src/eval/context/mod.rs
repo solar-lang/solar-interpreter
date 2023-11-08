@@ -1,3 +1,6 @@
+mod function_store;
+use self::function_store::{FunctionInfo, FunctionStore};
+
 use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
@@ -31,7 +34,7 @@ pub struct CompilerContext<'a> {
     /// Contains static, concrete Type Information.
     pub types: RwLock<HotelMap<SSID, Type>>,
 
-    pub functions: RwLock<HotelMap<SSID, StaticExpression>>,
+    pub functions: RwLock<FunctionStore>,
 
     /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
@@ -104,6 +107,7 @@ impl<'a> CompilerContext<'a> {
     }
 }
 
+/// Lookuptable to resolve symbols inside a module
 #[derive(Clone)]
 struct Lookup<'a> {
     module: &'a Module<'a>,
@@ -169,8 +173,15 @@ impl<'a> CompilerContext<'a> {
                 .read()
                 .expect("aquire readlock for functions");
 
-            if let Some((fnid, (_, typeid))) = fnstore.get_by_key(&ssid) {
-                return Ok((fnid, *typeid));
+            if let Some((fnid, info)) = fnstore.get_by_key(&ssid) {
+                match info {
+                    FunctionInfo::Complete((_, typeid)) => {
+                        return Ok((fnid, *typeid));
+                    }
+                    FunctionInfo::Partly => {
+                        panic!("only found partial function information during compilation. Find out later what to do here");
+                    }
+                }
             }
         }
 
@@ -179,6 +190,10 @@ impl<'a> CompilerContext<'a> {
         let args = ssid.1;
         for ((ident, _ty), static_type) in ast.args.iter().zip(args) {
             // TODO what to do with the arguments type here?
+            // This might be the right place, for
+            //     - autocasting integers.
+            //     - autocasting to interface types
+            //
             // if _ty != static_type { return Error }
             scope.push(ident.value, static_type);
         }
@@ -187,15 +202,21 @@ impl<'a> CompilerContext<'a> {
         // Actually we would like to reserve a spot for our function now.
         // otherwise we can't do recursion.
 
+        let id = {
+            self.functions
+                .write()
+                .expect("reserve function")
+                .reserve(ssid.clone())
+        };
+
         // compile the static expression
         let (s, t) = self.compile_full_expression(&ast.body, lookup, &mut scope)?;
 
         // save function
-        let id = self
-            .functions
+        self.functions
             .write()
             .expect("store function")
-            .insert(ssid, (s, t));
+            .extend(id, (s, t));
 
         Ok((id, t))
     }
@@ -297,7 +318,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         expr: &ast::expr::Value,
         lookup: Lookup,
-        scope: &mut Scope<'a>,
+        scope: &mut TScope,
     ) -> Result<Value, CompilationError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
@@ -386,8 +407,8 @@ impl<'a> CompilerContext<'a> {
             idmodule,
             imports,
         }: Lookup,
-        // TODO type of first argument is also relevant! Add as argument
-        scope: &Scope<'a>,
+        first_arg_type: TypeId,
+        scope: &TScope,
     ) -> Result<Vec<Value<'a>>, CompilationError> {
         // TODO check if it was found before, and return compiled version
 
