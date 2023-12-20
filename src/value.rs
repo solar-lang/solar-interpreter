@@ -3,7 +3,7 @@ use std::{
     rc::Rc,
 };
 
-use crate::id::{SymbolId, TypeId};
+use crate::id::SymbolId;
 
 pub type GcString = Rc<String>;
 
@@ -22,10 +22,6 @@ pub enum Value<'a> {
 }
 
 impl Value<'_> {
-    pub fn typeid(&self) -> TypeId {
-        unimplemented!()
-    }
-
     pub fn type_as_str(&self) -> &'static str {
         match self {
             Value::Void => "Void",
