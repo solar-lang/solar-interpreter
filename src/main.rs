@@ -30,7 +30,13 @@ fn main() {
         concrete function implementations.
         E.g. Function(..Args) -> AST
         and further we can then derive concrete ByteCode already!
-        E.g. Function(..Args) -> ByteCode
+        E.g. Function(..Args) -> ByteCode.
+
+        First Step:
+        Create TypeIDs for Buildin Types
+        Problems:
+            We find "123", or "[1, 2]" or "'hello'".
+            How do we find the right typeID ahead of time?
     */
 
     eprintln!("\n{result:?}");
