@@ -25,7 +25,7 @@ impl FunctionStore {
         self.functions.insert(key, FunctionInfo::Partly)
     }
 
-    pub fn extend(&mut self, index: usize, expr: StaticExpression) {
+    pub fn update_complete_function(&mut self, index: usize, expr: StaticExpression) {
         self.functions
             .set_by_index(index, FunctionInfo::Complete(expr));
     }

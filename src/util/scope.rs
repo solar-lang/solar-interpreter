@@ -7,7 +7,7 @@ pub struct Scope<T> {
 
 impl<T> Scope<T> {
     pub fn new() -> Self {
-        Scope::default()
+        Scope { values: vec![] }
     }
 
     pub fn get(&self, name: &str) -> Option<&T> {

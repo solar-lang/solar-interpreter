@@ -123,7 +123,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         symbol_id: SymbolId,
         args: &[TypeId],
-    ) -> Result<FunctionId, CompilationError> {
+    ) -> Result<(FunctionId, TypeId), CompilationError> {
         let (module, fileinfo, item) = self.get_symbol(symbol_id.clone());
 
         let lookup = Lookup {
@@ -216,7 +216,7 @@ impl<'a> CompilerContext<'a> {
         self.functions
             .write()
             .expect("store function")
-            .extend(id, (s, t));
+            .update_complete_function(id, (s, t));
 
         Ok((id, t))
     }
