@@ -311,12 +311,17 @@ impl<'a> CompilerContext<'a> {
     ) -> Result<StaticExpression, CompilationError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
-                // First, evaluate all arguments
-                let mut args: Vec<Value> = Vec::with_capacity(fc.args.len());
-                for arg in fc.args.iter() {
-                    let v = self.eval_sub_expr(&arg.value, lookup.clone(), scope)?;
-                    args.push(v);
-                }
+
+                // TODO this might be the place for autocasting
+                //
+                // Start, by compiling the arguments.
+                // The static types of them are needed to look up,
+                // which function was called.
+                // e.g. was is f(Int, Int) or f(String, Int) etc.
+                let mut args: Vec<StaticExpression> = Vec::with_capacity(fc.args.len());
+                
+                let args = fc.args.iter().map(|arg| self.compile_value(&arg.value, lookup.clone(), scope))
+                .collect::<Result<Vec<_>, _>>()?;
 
                 // See, if we're calling a special buildin function
                 if let Some(result) = self.check_buildin_func(fc, &args) {
@@ -356,16 +361,16 @@ impl<'a> CompilerContext<'a> {
                     value => Ok(value),
                 }
             }
-            ast::expr::Expression::Value(value) => self.eval_sub_expr(value, lookup, scope),
+            ast::expr::Expression::Value(value) => self.compile_value(value, lookup, scope),
         }
     }
 
-    fn eval_sub_expr(
+    fn compile_value(
         &'a self,
         expr: &ast::expr::Value,
         lookup: Lookup,
         scope: &mut Scope,
-    ) -> Result<Value, CompilationError> {
+    ) -> Result<StaticExpression, CompilationError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
         match expr {
@@ -551,8 +556,8 @@ impl<'a> CompilerContext<'a> {
     pub(crate) fn check_buildin_func(
         &'a self,
         func: &ast::expr::FunctionCall,
-        args: &[Value<'a>],
-    ) -> Option<Result<Value<'a>, CompilationError>> {
+        args: &[StaticExpression],
+    ) -> Option<Result<StaticExpression, CompilationError>> {
         if func.function_name.value.len() != 1 {
             return None;
         }
@@ -580,7 +585,7 @@ impl<'a> CompilerContext<'a> {
         Some(res)
     }
 
-    pub(crate) fn buildin_str_concat(&self, args: &[Value]) -> Result<Value, CompilationError> {
+    pub(crate) fn buildin_str_concat(&self, args: &[StaticExpression]) -> Result<StaticExpression, CompilationError> {
         let mut s = String::new();
 
         for arg in args {
@@ -598,7 +603,7 @@ impl<'a> CompilerContext<'a> {
         Ok(s.into())
     }
 
-    pub(crate) fn buildin_print(&self, args: &[Value]) -> Result<Value, CompilationError> {
+    pub(crate) fn buildin_print(&self, args: &[StaticExpression]) -> Result<StaticExpression, CompilationError> {
         // allowed overloadings:
         // [String]
         // []
@@ -609,13 +614,13 @@ impl<'a> CompilerContext<'a> {
         }
         out.flush().expect("write to interpreter io");
 
-        Ok(Value::Void)
+        Ok(StaticExpression::Void)
     }
 
     pub(crate) fn buildin_identity(
         &'a self,
-        args: &[Value<'a>],
-    ) -> Result<Value<'a>, CompilationError> {
+        args: &[StaticExpression<'a>],
+    ) -> Result<StaticExpression<'a>, CompilationError> {
         // only the identiy overloading is implemented for now.
         if args.len() != 1 {
             panic!("& is only implemented with 1 argument");

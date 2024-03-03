@@ -8,6 +8,12 @@ pub struct StaticExpression {
 }
 
 pub enum Instruction {
+    /// Interface for compiler buildins etc.
+    /// May be removed in the future.
+    /// May be expanded for traps etc. Who knows.
+    Custom {
+
+    },
     Void,
     FunctionCall {
         func: FunctionId,
