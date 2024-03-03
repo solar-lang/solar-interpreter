@@ -1,5 +1,7 @@
+mod custom;
 use crate::id::{FunctionId, TypeId};
 
+pub use custom::CustomInstructionCode;
 /// Expression with type-information
 pub struct StaticExpression {
     pub instr: Box<Instruction>,
@@ -12,7 +14,8 @@ pub enum Instruction {
     /// May be removed in the future.
     /// May be expanded for traps etc. Who knows.
     Custom {
-
+        code: CustomInstruction,
+        args: Vec<(Instruction, TypeId)>,
     },
     Void,
     FunctionCall {

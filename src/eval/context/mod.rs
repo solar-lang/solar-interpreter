@@ -4,7 +4,7 @@ use self::function_store::{FunctionInfo, FunctionStore};
 use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
-    compile::{Instruction, StaticExpression},
+    compile::{CustomInstructionCode, Instruction, StaticExpression},
     id::{FunctionId, IdModule, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{
@@ -27,7 +27,8 @@ pub struct CompilerContext<'a> {
     /// contains all ASTs across all modules and (sub-)dependencies
     pub module_info: GlobalModules<'a>,
 
-    pub buildin_id: BuildinTypeId,
+    /// IDs of buildin types like Int32 etc.
+    pub buildin_types: BuildinTypeId,
 
     /// Contains static, concrete Type Information.
     pub types: RwLock<HotelMap<SSID, Type>>,
@@ -42,7 +43,7 @@ impl<'a> CompilerContext<'a> {
     /// Creates a new Compiler Context with stdin and stdout
     /// propagated
     pub fn with_default_io(project_info: &'a ProjectInfo, module_info: GlobalModules<'a>) -> Self {
-        let (types, buildin_id) = link_buildin_types(&module_info);
+        let (types, buildin_types) = link_buildin_types(&module_info);
         let types = types.into();
 
         // TODO fill with buildin functions
@@ -54,7 +55,7 @@ impl<'a> CompilerContext<'a> {
             interpreter_ctx: Mutex::new(InterpreterContext::default()),
             types,
             functions,
-            buildin_id,
+            buildin_types,
         }
     }
 
@@ -311,7 +312,6 @@ impl<'a> CompilerContext<'a> {
     ) -> Result<StaticExpression, CompilationError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
-
                 // TODO this might be the place for autocasting
                 //
                 // Start, by compiling the arguments.
@@ -319,12 +319,15 @@ impl<'a> CompilerContext<'a> {
                 // which function was called.
                 // e.g. was is f(Int, Int) or f(String, Int) etc.
                 let mut args: Vec<StaticExpression> = Vec::with_capacity(fc.args.len());
-                
-                let args = fc.args.iter().map(|arg| self.compile_value(&arg.value, lookup.clone(), scope))
-                .collect::<Result<Vec<_>, _>>()?;
+
+                let args = fc
+                    .args
+                    .iter()
+                    .map(|arg| self.compile_value(&arg.value, lookup.clone(), scope))
+                    .collect::<Result<Vec<_>, _>>()?;
 
                 // See, if we're calling a special buildin function
-                if let Some(result) = self.check_buildin_func(fc, &args) {
+                if let Some(result) = self.check_buildin_func(fc, args) {
                     return result;
                 }
 
@@ -557,7 +560,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         func: &ast::expr::FunctionCall,
         args: &[StaticExpression],
-    ) -> Option<Result<StaticExpression, CompilationError>> {
+    ) -> Option<Result<CustomInstructionCode, CompilationError>> {
         if func.function_name.value.len() != 1 {
             return None;
         }
@@ -585,91 +588,90 @@ impl<'a> CompilerContext<'a> {
         Some(res)
     }
 
-    pub(crate) fn buildin_str_concat(&self, args: &[StaticExpression]) -> Result<StaticExpression, CompilationError> {
-        let mut s = String::new();
-
+    /// Assert that all types have the desired type
+    fn assert_type_ids(
+        &self,
+        args: &[StaticExpression],
+        wanted_id: u8,
+        wanted: &str,
+    ) -> Result<(), CompilationError> {
+        // verify that all args are strings.
         for arg in args {
-            match arg {
-                Value::String(arg) => s.push_str(arg),
-                _ => {
-                    return Err(CompilationError::TypeError {
-                        got: arg.type_as_str().to_string(),
-                        wanted: "String".to_string(),
+            if arg.ty != wanted_id as TypeId {
+                let typename = self
+                    .types
+                    .read()
+                    .map(|map| {
+                        // Lookup Type info
+                        let ty = map.get_by_index(arg.ty).expect("find type in type store");
+                        ty.info_name.clone()
                     })
-                }
+                    .expect("to lookup name of type");
+
+                return Err(CompilationError::TypeError {
+                    got: typename,
+                    // TODO maybe look up in type info directly
+                    wanted: wanted.to_string(),
+                });
             }
         }
 
-        Ok(s.into())
+        Ok(())
     }
 
-    pub(crate) fn buildin_print(&self, args: &[StaticExpression]) -> Result<StaticExpression, CompilationError> {
+    pub(crate) fn buildin_str_concat(
+        &self,
+        args: &[StaticExpression],
+    ) -> Result<CustomInstructionCode, CompilationError> {
+        self.assert_type_ids(args, self.buildin_types.string, "String")?;
+        Ok(CustomInstructionCode::StrConcat)
+    }
+
+    pub(crate) fn buildin_print(
+        &self,
+        args: &[StaticExpression],
+    ) -> Result<CustomInstructionCode, CompilationError> {
         // allowed overloadings:
         // [String]
         // []
+        self.assert_type_ids(args, self.buildin_types.string, "String")?;
 
-        let mut out = self.interpreter_ctx.lock().expect("lock interpreter io");
-        for arg in args {
-            write!(*out, "{arg}").expect("write to interpreter io");
-        }
-        out.flush().expect("write to interpreter io");
-
-        Ok(StaticExpression::Void)
+        Ok(CustomInstructionCode::Print)
     }
 
     pub(crate) fn buildin_identity(
         &'a self,
-        args: &[StaticExpression<'a>],
-    ) -> Result<StaticExpression<'a>, CompilationError> {
+        args: &[StaticExpression],
+    ) -> Result<CustomInstructionCode, CompilationError> {
         // only the identiy overloading is implemented for now.
+        // Later we will implent currying using this, but in solar code itself probably.
         if args.len() != 1 {
-            panic!("& is only implemented with 1 argument");
+            return Err(CompilationError::WrongBuildin {
+                found: "& is only implemented with 1 argument".to_string(),
+            });
         }
 
-        Ok(args[0].clone())
+        Ok(CustomInstructionCode::Identity)
     }
 
-    pub(crate) fn buildin_readline(&self, args: &[Value]) -> Result<Value, CompilationError> {
+    pub(crate) fn buildin_readline(
+        &self,
+        args: &[StaticExpression],
+    ) -> Result<CustomInstructionCode, CompilationError> {
         let mut iio = self.interpreter_ctx.lock().expect("lock interpreter io");
 
         // allowed overloadings:
         // [String]
         // []
-        if !args.is_empty() {
-            // Check that no more than 1 argument got supplied
-            if args.len() > 1 {
-                panic!("Expected 1 argument of type string to buildin_readline");
-            }
 
-            // Verify that it is of type string
-            let s = if let Value::String(s) = &args[0] {
-                s
-            } else {
-                panic!("Expected argument to buildin_readline to be of type string");
-            };
+        self.assert_type_ids(args, self.buildin_types.string, "String")?;
 
-            write!(iio, "{s}").expect("write to interpreter io");
-            iio.flush().expect("flush interpreter io");
+        if args.len() > 1 {
+            return Err(CompilationError::WrongBuildin {
+                found: "readline is only implemented for 0 or 1 (String) argument".to_string(),
+            });
         }
 
-        let mut s = Vec::new();
-
-        loop {
-            // read exactly one character
-            let mut buf = [0];
-            iio.read_exact(&mut buf).expect("read from input");
-
-            // grab buffer as character
-            let b = buf[0];
-
-            if b == b'\n' {
-                break;
-            }
-
-            s.push(b)
-        }
-
-        let s = String::from_utf8(s).expect("parse stdin as a string");
-        Ok(s.into())
+        Ok(CustomInstructionCode::Readline)
     }
 }
