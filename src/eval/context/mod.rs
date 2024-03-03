@@ -15,11 +15,7 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{
-    self,
-    body::{self, BodyItem},
-    expr::FullExpression,
-};
+use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
 use std::io::{Read, Write};
 use std::sync::{Mutex, RwLock};
 
@@ -161,7 +157,11 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
-    /// Compile a function,
+    /// Compile a function.
+    /// The instructions for the function will get stored inside the context.
+    /// All this returns is the lookup symbol/index (and the return type) of the function.
+    /// If it is already compiled,
+    /// this will simply return the index of the function and not compile it again.
     fn compile(
         &'a self,
         ast: &ast::Function,
@@ -177,18 +177,32 @@ impl<'a> CompilerContext<'a> {
 
             if let Some((fnid, info)) = fnstore.get_by_key(&ssid) {
                 match info {
-                    FunctionInfo::Complete((_, typeid)) => {
-                        return Ok((fnid, *typeid));
+                    FunctionInfo::Complete { args, body } => {
+                        return Ok((fnid, body.ty));
                     }
-                    FunctionInfo::Partly => {
+                    FunctionInfo::Partial => {
                         panic!("only found partial function information during compilation. Find out later what to do here");
                     }
                 }
             }
         }
 
+        // The function is not compiled yet.
+        // Compile the function
+
+        // First, reserve an index for the function.
+        let id = {
+            self.functions
+                .write()
+                .expect("reserve function")
+                .reserve(ssid.clone())
+        };
+
+        // Then we can start compiling it.
+        // First, add the arguments to the scope.
         let mut scope = Scope::new();
 
+        let mut types = Vec::new();
         let args = ssid.1;
         for ((ident, _ty), static_type) in ast.args.iter().zip(args) {
             // TODO what to do with the arguments type here?
@@ -197,30 +211,31 @@ impl<'a> CompilerContext<'a> {
             //     - autocasting to interface types
             //
             // if _ty != static_type { return Error }
-            scope.push(ident.value, static_type);
+
+            // we can ignore the index, it's just 1, 2, 3, ... anyway
+            let _index = scope.push(ident.value);
+
+            types.push(static_type);
         }
 
         // TODO there's a problem here.
         // Actually we would like to reserve a spot for our function now.
         // otherwise we can't do recursion.
 
-        let id = {
-            self.functions
-                .write()
-                .expect("reserve function")
-                .reserve(ssid.clone())
-        };
-
         // compile the static expression
-        let (s, t) = self.compile_full_expression(&ast.body, lookup, &mut scope)?;
+        let body = self.compile_full_expression(&ast.body, lookup, &mut scope)?;
+
+        let return_type = body.ty;
+        // TODO check, that the return type matches the functions return type.
+        // TODO possibly map the return value to the type specified in the AST. (e.g. map to interfaces etc.)
 
         // save function
         self.functions
             .write()
             .expect("store function")
-            .update_complete_function(id, (s, t));
+            .update_complete_function(id, types, body);
 
-        Ok((id, t))
+        Ok((id, return_type))
     }
 
     fn compile_full_expression(
