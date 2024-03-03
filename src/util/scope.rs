@@ -1,27 +1,46 @@
 #[derive(Debug, Clone, Default)]
-/// Logical Scope, optimized for small number of entries.
+
+/// Logical Scope, used for looking up variable names in scope.
+/// Since variable names can overshadow each other,
+/// the scope respects that when looking up,
+/// and only returns the most recent variable.
+/// optimized for small number of entries.
 /// Optimized for pushing and popping.
-pub struct Scope<T> {
-    values: Vec<(String, T)>,
+pub struct Scope {
+    values: Vec<(String, u16)>,
+    /// counts how many times has been pushed into this scope,
+    /// and assiciates a value with it.
+    /// This is done to differentiate values added to this scope with certainty.
+    /// Even, if they have the same name, they will have differing values.
+    counter: u16,
 }
 
-impl<T> Scope<T> {
+impl Scope {
     pub fn new() -> Self {
-        Scope { values: vec![] }
+        Scope {
+            values: vec![],
+            counter: 0,
+        }
     }
 
-    pub fn get(&self, name: &str) -> Option<&T> {
-        self.values.iter().rfind(|(n, _)| n == name).map(|(_, v)| v)
+    pub fn get(&self, name: &str) -> Option<u16> {
+        self.values
+            .iter()
+            .rfind(|(n, _)| n == name)
+            .map(|(_, index)| *index)
     }
 
-    pub fn push(&mut self, name: impl Into<String>, value: T) {
-        self.values.push((name.into(), value));
+    pub fn push(&mut self, name: impl Into<String>) -> u16 {
+        let index = self.counter;
+        self.counter += 1;
+        self.values.push((name.into(), index));
+        index
     }
 
     /// Pops the most recent value out of the scope.
     /// Popping of an empty scope is considered a programming error
     /// and results in a panic.
-    pub fn pop(&mut self) -> T {
-        self.values.pop().expect("find value in local scope").1
+    pub fn pop(&mut self) -> u16 {
+        self.values.pop().expect("find value in local scope").1 .0
     }
 }

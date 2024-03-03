@@ -1,11 +1,11 @@
 use crate::id::{FunctionId, TypeId};
 
 /// Expression with type-information
-pub type StaticExpression = (
-    Box<Instruction>,
-    // TODO make this into an array of typeIDs later
-    TypeId,
-);
+pub struct StaticExpression {
+    pub instr: Box<Instruction>,
+    // NOTE maybe make this into an array of typeIDs later
+    pub ty: TypeId,
+}
 
 pub enum Instruction {
     Void,
@@ -15,14 +15,17 @@ pub enum Instruction {
     },
     /// Get local Variable at address
     GetLocalVar(usize),
+    /// Define a new let binding, that can be referenced later
     NewLocalVar {
         // name: String,
-        value: StaticExpression,
-        scope: StaticExpression,
+        // within the current scope the index is unique
+        var_index: u16,
+        // The value the variable will hold.
+        var_value: StaticExpression,
+        /// The expressions coming after the let binding,
+        /// where the variable is in scope.
+        body: StaticExpression,
     },
-    AssignLocalVar(usize, StaticExpression),
-    Return(StaticExpression),
-
     IfExpr {
         /// Must be of typeId == Boolean
         condition: StaticExpression,

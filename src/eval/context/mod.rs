@@ -4,7 +4,7 @@ use self::function_store::{FunctionInfo, FunctionStore};
 use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
-    compile::StaticExpression,
+    compile::{Instruction, StaticExpression},
     id::{FunctionId, IdModule, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{
@@ -15,11 +15,13 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
+use solar_parser::ast::{
+    self,
+    body::{self, BodyItem},
+    expr::FullExpression,
+};
 use std::io::{Read, Write};
 use std::sync::{Mutex, RwLock};
-
-type TScope = Scope<TypeId>;
 
 /// Struct that gets created once globally
 /// Containing Information about all Modules, ASTs, Projects
@@ -225,27 +227,56 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         expr: &FullExpression,
         lookup: Lookup,
-        scope: &mut TScope,
+        scope: &mut Scope,
     ) -> Result<StaticExpression, CompilationError> {
         match expr {
             FullExpression::Let(expr) => {
+                let mut let_list = Vec::new();
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
-                    let value = self.compile_full_expression(value, lookup.clone(), scope)?;
-                    scope.push(ident.value, value);
+                    let var_value = self.compile_full_expression(value, lookup.clone(), scope)?;
+                    let var_index = scope.push(ident);
+                    let_list.push((var_index, var_value));
                 }
 
                 // We now have readied the scope and are able to evaluate the body
+                let body_expression = self.compile_full_expression(&expr.body, lookup, scope)?;
 
-                let v = self.compile_full_expression(&expr.body, lookup, scope);
+                // It's only now that we know the final return type of the let bindings.
+                // It's the one from the body. We can start with building the tree now, in reverse order :)
 
-                // Now we remove the let bindings from the scope
+                let (var_index, var_value) = let_list
+                    .pop()
+                    .expect("let binding th have at least one definition");
+
+                // return type of the let binding
+                let ty = body_expression.ty;
+
+                // The tree we're building (in reverse)
+                let mut let_tree = Instruction::NewLocalVar {
+                    var_index,
+                    var_value,
+                    body: body_expression,
+                };
+
+                for (var_index, var_value) in let_list.into_iter().rev() {
+                    let_tree = Instruction::NewLocalVar {
+                        var_index,
+                        var_value,
+                        body: body_expression,
+                    }
+                }
+
+                // Now we remove the let bindings from the scope again
                 for _ in &expr.definitions {
                     scope.pop();
                 }
 
-                v
+                Ok(StaticExpression {
+                    instr: Box::new(let_tree),
+                    ty,
+                })
             }
 
             FullExpression::Expression(ref expr) => self.compile_minor_expr(expr, lookup, scope),
@@ -261,7 +292,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         expr: &ast::expr::Expression,
         lookup: Lookup,
-        scope: &mut TScope,
+        scope: &mut Scope,
     ) -> Result<StaticExpression, CompilationError> {
         match expr {
             ast::expr::Expression::FunctionCall(fc) => {
@@ -318,7 +349,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         expr: &ast::expr::Value,
         lookup: Lookup,
-        scope: &mut TScope,
+        scope: &mut Scope,
     ) -> Result<Value, CompilationError> {
         use ast::expr::Literal;
         use ast::expr::Value as V;
@@ -408,7 +439,7 @@ impl<'a> CompilerContext<'a> {
             imports,
         }: Lookup,
         first_arg_type: TypeId,
-        scope: &TScope,
+        scope: &Scope,
     ) -> Result<Vec<Value<'a>>, CompilationError> {
         // TODO check if it was found before, and return compiled version
 
