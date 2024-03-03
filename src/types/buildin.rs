@@ -53,6 +53,7 @@ pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, Bui
                         Vec::new(),
                     );
                     let ty = Type {
+                        info_name: item.name.value.to_string(),
                         module: module.to_vec(),
                         field_layout: Vec::new(),
                         size_in_bytes: 0,

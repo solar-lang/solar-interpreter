@@ -14,8 +14,8 @@ pub enum Instruction {
     /// May be removed in the future.
     /// May be expanded for traps etc. Who knows.
     Custom {
-        code: CustomInstruction,
-        args: Vec<(Instruction, TypeId)>,
+        code: CustomInstructionCode,
+        args: Vec<StaticExpression>,
     },
     Void,
     FunctionCall {

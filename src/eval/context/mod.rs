@@ -16,7 +16,6 @@ use crate::{
 };
 use hotel::HotelMap;
 use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
-use std::io::{Read, Write};
 use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
@@ -327,8 +326,12 @@ impl<'a> CompilerContext<'a> {
                     .collect::<Result<Vec<_>, _>>()?;
 
                 // See, if we're calling a special buildin function
-                if let Some(result) = self.check_buildin_func(fc, args) {
-                    return result;
+                if let Some(custom_code) = self.check_buildin_func(fc, &args) {
+                    let (custom_code, ty) = custom_code?;
+                    return Ok(StaticExpression {
+                        instr: Box::new(Instruction::Custom { code: custom_code, args }),
+                        ty,
+                    })
                 }
 
                 // Find function name in scope
@@ -560,7 +563,7 @@ impl<'a> CompilerContext<'a> {
         &'a self,
         func: &ast::expr::FunctionCall,
         args: &[StaticExpression],
-    ) -> Option<Result<CustomInstructionCode, CompilationError>> {
+    ) -> Option<Result<(CustomInstructionCode, TypeId), CompilationError>> {
         if func.function_name.value.len() != 1 {
             return None;
         }
@@ -622,27 +625,27 @@ impl<'a> CompilerContext<'a> {
     pub(crate) fn buildin_str_concat(
         &self,
         args: &[StaticExpression],
-    ) -> Result<CustomInstructionCode, CompilationError> {
+    ) -> Result<(CustomInstructionCode, TypeId), CompilationError> {
         self.assert_type_ids(args, self.buildin_types.string, "String")?;
-        Ok(CustomInstructionCode::StrConcat)
+        Ok((CustomInstructionCode::StrConcat, self.buildin_types.string as TypeId))
     }
 
     pub(crate) fn buildin_print(
         &self,
         args: &[StaticExpression],
-    ) -> Result<CustomInstructionCode, CompilationError> {
+    ) -> Result<(CustomInstructionCode, TypeId), CompilationError> {
         // allowed overloadings:
         // [String]
         // []
         self.assert_type_ids(args, self.buildin_types.string, "String")?;
 
-        Ok(CustomInstructionCode::Print)
+        Ok((CustomInstructionCode::Print, self.buildin_types.uint as TypeId))
     }
 
     pub(crate) fn buildin_identity(
         &'a self,
         args: &[StaticExpression],
-    ) -> Result<CustomInstructionCode, CompilationError> {
+    ) -> Result<(CustomInstructionCode, TypeId), CompilationError> {
         // only the identiy overloading is implemented for now.
         // Later we will implent currying using this, but in solar code itself probably.
         if args.len() != 1 {
@@ -651,13 +654,13 @@ impl<'a> CompilerContext<'a> {
             });
         }
 
-        Ok(CustomInstructionCode::Identity)
+        Ok((CustomInstructionCode::Identity, args[0].ty))
     }
 
     pub(crate) fn buildin_readline(
         &self,
         args: &[StaticExpression],
-    ) -> Result<CustomInstructionCode, CompilationError> {
+    ) -> Result<(CustomInstructionCode, TypeId), CompilationError> {
         let mut iio = self.interpreter_ctx.lock().expect("lock interpreter io");
 
         // allowed overloadings:
@@ -672,6 +675,6 @@ impl<'a> CompilerContext<'a> {
             });
         }
 
-        Ok(CustomInstructionCode::Readline)
+        Ok((CustomInstructionCode::Readline, self.buildin_types.string as TypeId))
     }
 }
