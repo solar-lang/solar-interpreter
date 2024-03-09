@@ -337,9 +337,9 @@ impl<'a> CompilerContext<'a> {
                 // Find function name in scope
                 let path = util::normalize_path(&fc.function_name);
 
-                // TODO this does not yet check, if the module where the type of the first
-                // argument is declared, contains the symbol. This has precedence over imports and declarations.
-                let mut symbol_candidates = self.resolve_symbol(&path, lookup, scope)?;
+                let first_arg_ty: Vec<_> = args.iter().map(|s|s.ty).collect();
+
+                let mut symbol_candidates = self.resolve_symbol(&path, lookup, &first_arg_ty, scope)?;
 
                 // TODO check all candidates first!
                 if symbol_candidates.len() > 1 {
@@ -464,7 +464,7 @@ impl<'a> CompilerContext<'a> {
             idmodule,
             imports,
         }: Lookup,
-        first_arg_type: TypeId,
+        arg_types: &[TypeId],
         scope: &Scope,
     ) -> Result<Vec<Value<'a>>, CompilationError> {
         // TODO check if it was found before, and return compiled version
@@ -480,6 +480,14 @@ impl<'a> CompilerContext<'a> {
             // The scope only holds arguments and let declarations.
             // Only one item will be returned by this.
             if let Some(item) = scope.get(name) {
+                let instr = Instruction::GetLocalVar(item as usize);
+
+                return Ok(vec![StaticExpression {
+                                    instr: Box(instr),
+                                    ty,
+                
+                                }]);
+
                 // TODO this is the place where we can return references
                 // e.g. in order to assign to stuff.
                 return Ok(vec![item.clone()]);
