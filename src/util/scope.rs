@@ -41,6 +41,6 @@ impl Scope {
     /// Popping of an empty scope is considered a programming error
     /// and results in a panic.
     pub fn pop(&mut self) -> u16 {
-        self.values.pop().expect("find value in local scope").1 .0
+        self.values.pop().expect("find value in local scope").1
     }
 }
