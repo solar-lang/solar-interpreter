@@ -17,7 +17,7 @@ pub enum Instruction {
         code: CustomInstructionCode,
         args: Vec<StaticExpression>,
     },
-    Void,
+    // Void,
     FunctionCall {
         func: FunctionId,
         args: Vec<(Instruction, TypeId)>,

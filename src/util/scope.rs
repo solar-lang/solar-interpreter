@@ -1,3 +1,5 @@
+use crate::id::TypeId;
+
 #[derive(Debug, Clone, Default)]
 
 /// Logical Scope, used for looking up variable names in scope.
@@ -7,7 +9,7 @@
 /// optimized for small number of entries.
 /// Optimized for pushing and popping.
 pub struct Scope {
-    values: Vec<(String, u16)>,
+    values: Vec<(String, TypeId, u16)>,
     /// counts how many times has been pushed into this scope,
     /// and assiciates a value with it.
     /// This is done to differentiate values added to this scope with certainty.
@@ -23,24 +25,24 @@ impl Scope {
         }
     }
 
-    pub fn get(&self, name: &str) -> Option<u16> {
+    pub fn get(&self, name: &str) -> Option<(TypeId, u16)> {
         self.values
             .iter()
-            .rfind(|(n, _)| n == name)
-            .map(|(_, index)| *index)
+            .rfind(|(n, _, _)| n == name)
+            .map(|(_, ty, index)| (*ty, *index))
     }
 
-    pub fn push(&mut self, name: impl Into<String>) -> u16 {
+    pub fn push(&mut self, name: impl Into<String>, ty: TypeId) -> u16 {
         let index = self.counter;
         self.counter += 1;
-        self.values.push((name.into(), index));
+        self.values.push((name.into(), ty, index));
         index
     }
 
     /// Pops the most recent value out of the scope.
     /// Popping of an empty scope is considered a programming error
     /// and results in a panic.
-    pub fn pop(&mut self) -> u16 {
+    pub fn pop(&mut self) -> (TypeId, u16) {
         self.values.pop().expect("find value in local scope").1
     }
 }

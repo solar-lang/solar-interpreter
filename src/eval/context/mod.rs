@@ -5,7 +5,7 @@ use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
     compile::{CustomInstructionCode, Instruction, StaticExpression},
-    id::{FunctionId, IdModule, SymbolId, TypeId, SSID},
+    id::{FunctionId, IdModule, Symbol, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{
         buildin::{link_buildin_types, BuildinTypeId},
@@ -213,7 +213,7 @@ impl<'a> CompilerContext<'a> {
             // if _ty != static_type { return Error }
 
             // we can ignore the index, it's just 1, 2, 3, ... anyway
-            let _index = scope.push(ident.value);
+            let _index = scope.push(ident.value, static_type);
 
             types.push(static_type);
         }
@@ -251,7 +251,7 @@ impl<'a> CompilerContext<'a> {
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
                     let var_value = self.compile_full_expression(value, lookup.clone(), scope)?;
-                    let var_index = scope.push(ident);
+                    let var_index = scope.push(ident, var_value.ty);
                     let_list.push((var_index, var_value));
                 }
 
@@ -294,16 +294,16 @@ impl<'a> CompilerContext<'a> {
                 })
             }
 
-            FullExpression::Expression(ref expr) => self.compile_minor_expr(expr, lookup, scope),
+            FullExpression::Expression(ref expr) => self.compile_call_or_value(expr, lookup, scope),
             FullExpression::Concat(expr) => {
                 let e = expr.to_expr();
-                self.compile_minor_expr(&e, lookup, scope)
+                self.compile_call_or_value(&e, lookup, scope)
             }
             expr => panic!("Unexpected type of expression: {expr:#?}"),
         }
     }
 
-    fn compile_minor_expr(
+    fn compile_call_or_value(
         &'a self,
         expr: &ast::expr::Expression,
         lookup: Lookup,
@@ -343,28 +343,25 @@ impl<'a> CompilerContext<'a> {
 
                 // TODO check all candidates first!
                 if symbol_candidates.len() > 1 {
-                    panic!("found multiple candidates for {path:?}:\n{symbol_candidates:#?}");
+                    panic!("found multiple ({}) candidates for {path:?}", symbol_candidates.len());
                 }
 
-                let symbol: Value = symbol_candidates.pop().unwrap();
+                // The symbol might be a symbol in a module (Function, Constant, Type etc.)
+                // Or just a local variable
+                let symbol = symbol_candidates.pop().unwrap();
+                let ty = symbol.ty;
+                let instr = symbol.instr;
 
-                match symbol {
-                    // Only evaluate functions directly
-                    // otherwise return value
-                    Value::Function(function_index) => {
-                        // TODO dont create functioncontext here. Instead, move fc to global context.
-                        // A given FC needs to be created only once.
-                        // With the FC AND the argument-types we have all needed context to compile a function.
-                        // let ctx = func.ctx(&self.ctx);
-                        self.eval_symbol(function_index, &args)
-                    }
-                    // if there are argument supplied to values,
-                    // this is definitly and error.
-                    v if !args.is_empty() => Err(CompilationError::TypeError {
-                        got: format!("{v}"),
-                        wanted: "fun(...) -> ...".to_string(),
-                    }),
-                    value => Ok(value),
+                // If we have any sort of function or callable stuff, call it.
+                // If we don't have callable stuff, but we have arguments, that's an error
+                // Otherwise return value of the symbol
+                // (NOTE: references and assignments could be done here.)
+                match *instr {
+                    Instruction::Custom { code, args } => todo!("calling buildin functions"),
+                    Instruction::FunctionCall { func, args } => todo!(),
+                    Instruction::GetLocalVar(_) => todo!(),
+                    Instruction::NewLocalVar { var_index, var_value, body } => todo!(),
+                    Instruction::IfExpr { condition, case_true, case_false } => todo!(),
                 }
             }
             ast::expr::Expression::Value(value) => self.compile_value(value, lookup, scope),
@@ -428,6 +425,8 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
+    // TODO RESOLVE SYMBOL doesn't return an expression.
+    // it returns a reference to a symbol, like a local varibale.
     ///
     /// Returns a set of candidates for the symbol.
     /// Resolving the candidates requires further knowledge.
@@ -466,7 +465,7 @@ impl<'a> CompilerContext<'a> {
         }: Lookup,
         arg_types: &[TypeId],
         scope: &Scope,
-    ) -> Result<Vec<Value<'a>>, CompilationError> {
+    ) -> Result<Vec<Symbol>, CompilationError> {
         // TODO check if it was found before, and return compiled version
 
         // if the length of the path is > 1, it's guaranteed looking up an import.
@@ -479,22 +478,18 @@ impl<'a> CompilerContext<'a> {
             // Local scope overrides everything.
             // The scope only holds arguments and let declarations.
             // Only one item will be returned by this.
-            if let Some(item) = scope.get(name) {
-                let instr = Instruction::GetLocalVar(item as usize);
+            if let Some((ty, addr)) = scope.get(name) {
+                let symbol = Symbol::LocalVar { addr, ty };
 
-                return Ok(vec![StaticExpression {
-                                    instr: Box(instr),
-                                    ty,
-                
-                                }]);
+                return Ok(vec![symbol]);
 
                 // TODO this is the place where we can return references
                 // e.g. in order to assign to stuff.
-                return Ok(vec![item.clone()]);
+                // return Ok(vec![item.clone()]);
             }
         }
 
-        let mut candidates: Vec<Value<'a>> = Vec::new();
+        let mut candidates: Vec<Symbol> = Vec::new();
         if let [name] = path {
             // if the path is only one element long,
             // we must also look up the local module.
@@ -502,7 +497,7 @@ impl<'a> CompilerContext<'a> {
 
             if let Ok(res) = module.find(name, &idmodule) {
                 for symbolid in res {
-                    candidates.push(Value::Function(symbolid));
+                    candidates.push(Symbol::Global(symbolid));
                 }
             }
 
@@ -552,7 +547,7 @@ impl<'a> CompilerContext<'a> {
                 };
 
                 for c in cs {
-                    candidates.push(Value::Function(c));
+                    candidates.push(Symbol::Global(c));
                 }
             }
         }
