@@ -5,7 +5,7 @@ use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
     compile::{CustomInstructionCode, Instruction, StaticExpression},
-    id::{FunctionId, IdModule, Symbol, SymbolId, TypeId, SSID},
+    id::{FunctionId, IdItem, IdModule, Symbol, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{
         buildin::{link_buildin_types, BuildinTypeId},
@@ -15,7 +15,7 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
+use solar_parser::ast::{self, body::BodyItem, expr::{FullExpression, FunctionCall}};
 use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
@@ -66,7 +66,6 @@ impl<'a> CompilerContext<'a> {
 
         let fileinfo = module.files.get(file as usize).expect("IdFile to be valid");
 
-        use crate::id::IdItem;
         let item = match item {
             IdItem::Func(id) => &fileinfo.ast.items[id as usize],
             IdItem::GlobalVar(id) => &fileinfo.ast.items[id as usize],
@@ -115,6 +114,7 @@ struct Lookup<'a> {
 
 /// Evaluation related stuff.
 impl<'a> CompilerContext<'a> {
+
     /// Main entrypoint for compiling a function.
     /// Will recursively compile all downstream functions, that are getting called within the AST.
     pub fn compile_symbol(
@@ -310,6 +310,7 @@ impl<'a> CompilerContext<'a> {
         scope: &mut Scope,
     ) -> Result<StaticExpression, CompilationError> {
         match expr {
+            // Note, that this may just be loading a variable
             ast::expr::Expression::FunctionCall(fc) => {
                 // TODO this might be the place for autocasting
                 //
@@ -317,8 +318,6 @@ impl<'a> CompilerContext<'a> {
                 // The static types of them are needed to look up,
                 // which function was called.
                 // e.g. was is f(Int, Int) or f(String, Int) etc.
-                let mut args: Vec<StaticExpression> = Vec::with_capacity(fc.args.len());
-
                 let args = fc
                     .args
                     .iter()
@@ -349,19 +348,23 @@ impl<'a> CompilerContext<'a> {
                 // The symbol might be a symbol in a module (Function, Constant, Type etc.)
                 // Or just a local variable
                 let symbol = symbol_candidates.pop().unwrap();
-                let ty = symbol.ty;
-                let instr = symbol.instr;
 
                 // If we have any sort of function or callable stuff, call it.
                 // If we don't have callable stuff, but we have arguments, that's an error
                 // Otherwise return value of the symbol
                 // (NOTE: references and assignments could be done here.)
-                match *instr {
-                    Instruction::Custom { code, args } => todo!("calling buildin functions"),
-                    Instruction::FunctionCall { func, args } => todo!(),
-                    Instruction::GetLocalVar(_) => todo!(),
-                    Instruction::NewLocalVar { var_index, var_value, body } => todo!(),
-                    Instruction::IfExpr { condition, case_true, case_false } => todo!(),
+                match symbol {
+                    Symbol::LocalVar { addr, ty } => {
+                        // TODO at the moment we do not have lambdas.
+                        // This would be an important place for them.
+                        Ok(Instruction::GetLocalVar(addr.into()).expr(ty))
+                    }
+                    Symbol::Global(symbol_id) => {
+                        let argsty = args.iter().map(|a|a.ty).collect::<Vec<_>>();
+                        let (func, ty) = self.compile_symbol(symbol_id, &argsty)?;
+
+                        Ok(Instruction::FunctionCall {func, args}.expr(ty))
+                    }
                 }
             }
             ast::expr::Expression::Value(value) => self.compile_value(value, lookup, scope),

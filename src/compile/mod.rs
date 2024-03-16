@@ -20,7 +20,7 @@ pub enum Instruction {
     // Void,
     FunctionCall {
         func: FunctionId,
-        args: Vec<(Instruction, TypeId)>,
+        args: Vec<StaticExpression>,
     },
     /// Get local Variable at address
     GetLocalVar(usize),
@@ -43,4 +43,10 @@ pub enum Instruction {
     }, // we have differnt kinds of for loops and ifs.
        // Expressions and Statements
        // (loops) Expressions return an Array of static types, that must be the same
+}
+
+impl Instruction {
+    pub fn expr(self, ty: TypeId) -> StaticExpression {
+        StaticExpression { instr: Box::new(self), ty }
+    }
 }
