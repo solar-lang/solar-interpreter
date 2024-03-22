@@ -15,7 +15,7 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{self, body::BodyItem, expr::{FullExpression, FunctionCall}};
+use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
 use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
@@ -114,7 +114,6 @@ struct Lookup<'a> {
 
 /// Evaluation related stuff.
 impl<'a> CompilerContext<'a> {
-
     /// Main entrypoint for compiling a function.
     /// Will recursively compile all downstream functions, that are getting called within the AST.
     pub fn compile_symbol(
@@ -328,21 +327,28 @@ impl<'a> CompilerContext<'a> {
                 if let Some(custom_code) = self.check_buildin_func(fc, &args) {
                     let (custom_code, ty) = custom_code?;
                     return Ok(StaticExpression {
-                        instr: Box::new(Instruction::Custom { code: custom_code, args }),
+                        instr: Box::new(Instruction::Custom {
+                            code: custom_code,
+                            args,
+                        }),
                         ty,
-                    })
+                    });
                 }
 
                 // Find function name in scope
                 let path = util::normalize_path(&fc.function_name);
 
-                let first_arg_ty: Vec<_> = args.iter().map(|s|s.ty).collect();
+                let first_arg_ty: Vec<_> = args.iter().map(|s| s.ty).collect();
 
-                let mut symbol_candidates = self.resolve_symbol(&path, lookup, &first_arg_ty, scope)?;
+                let mut symbol_candidates =
+                    self.resolve_symbol(&path, lookup, &first_arg_ty, scope)?;
 
                 // TODO check all candidates first!
                 if symbol_candidates.len() > 1 {
-                    panic!("found multiple ({}) candidates for {path:?}", symbol_candidates.len());
+                    panic!(
+                        "found multiple ({}) candidates for {path:?}",
+                        symbol_candidates.len()
+                    );
                 }
 
                 // The symbol might be a symbol in a module (Function, Constant, Type etc.)
@@ -360,10 +366,10 @@ impl<'a> CompilerContext<'a> {
                         Ok(Instruction::GetLocalVar(addr.into()).expr(ty))
                     }
                     Symbol::Global(symbol_id) => {
-                        let argsty = args.iter().map(|a|a.ty).collect::<Vec<_>>();
+                        let argsty = args.iter().map(|a| a.ty).collect::<Vec<_>>();
                         let (func, ty) = self.compile_symbol(symbol_id, &argsty)?;
 
-                        Ok(Instruction::FunctionCall {func, args}.expr(ty))
+                        Ok(Instruction::FunctionCall { func, args }.expr(ty))
                     }
                 }
             }
@@ -381,7 +387,7 @@ impl<'a> CompilerContext<'a> {
         use ast::expr::Value as V;
         match expr {
             V::Literal(lit) => match lit {
-                Literal::StringLiteral(s) => Ok(s.value.to_string().into()),
+                Literal::StringLiteral(s) => Ok(Value::String(s.value.to_string())),
                 Literal::Bool { value, .. } => Ok(Value::Bool(*value)),
                 Literal::Int(int) => {
                     let i = util::eval_int(int);
@@ -633,7 +639,10 @@ impl<'a> CompilerContext<'a> {
         args: &[StaticExpression],
     ) -> Result<(CustomInstructionCode, TypeId), CompilationError> {
         self.assert_type_ids(args, self.buildin_types.string, "String")?;
-        Ok((CustomInstructionCode::StrConcat, self.buildin_types.string as TypeId))
+        Ok((
+            CustomInstructionCode::StrConcat,
+            self.buildin_types.string as TypeId,
+        ))
     }
 
     pub(crate) fn buildin_print(
@@ -645,7 +654,10 @@ impl<'a> CompilerContext<'a> {
         // []
         self.assert_type_ids(args, self.buildin_types.string, "String")?;
 
-        Ok((CustomInstructionCode::Print, self.buildin_types.uint as TypeId))
+        Ok((
+            CustomInstructionCode::Print,
+            self.buildin_types.uint as TypeId,
+        ))
     }
 
     pub(crate) fn buildin_identity(
@@ -681,6 +693,9 @@ impl<'a> CompilerContext<'a> {
             });
         }
 
-        Ok((CustomInstructionCode::Readline, self.buildin_types.string as TypeId))
+        Ok((
+            CustomInstructionCode::Readline,
+            self.buildin_types.string as TypeId,
+        ))
     }
 }
