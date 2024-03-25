@@ -15,7 +15,7 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{self, body::BodyItem, expr::FullExpression};
+use solar_parser::ast::{self, body::BodyItem, expr::{FullExpression, FunctionCall, Literal}};
 use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
@@ -383,44 +383,54 @@ impl<'a> CompilerContext<'a> {
         lookup: Lookup,
         scope: &mut Scope,
     ) -> Result<StaticExpression, CompilationError> {
-        use ast::expr::Literal;
         use ast::expr::Value as V;
         match expr {
-            V::Literal(lit) => match lit {
-                Literal::StringLiteral(s) => Ok(Value::String(s.value.to_string())),
-                Literal::Bool { value, .. } => Ok(Value::Bool(*value)),
-                Literal::Int(int) => {
-                    let i = util::eval_int(int);
-                    if let Err(e) = i {
-                        return Err(e.into());
-                    }
-
-                    Ok(Value::Int(i.unwrap()))
-                }
-                Literal::Float(f) => {
-                    let f = f.parse::<f64>().expect("float to be in valid f64 form");
-                    Ok(Value::Float(f))
-                }
-            },
+            V::Literal(lit) => compile_constant_value(lit, &self.buildin_types),
             V::FullIdentifier(path) => {
+                // examples for identifierpath:
+                // point.x
+                // x
+                // person.name
+                // order
+                // 
+                // may also be ->v<-
+                // where we do not know at this point, what kind of arguments "double" takes.
+                // map [7, 9] double
+
                 // Actually, I don't think I want to allow Paths here.
                 // just field access.
                 // this line is likely to be deleted.
                 let path = util::normalize_path(path);
 
                 if path.len() != 1 {
-                    panic!("no field access like this");
+                    unimplemented!("field access is not supported as of now.");
                 }
 
-                let mut result = self.resolve_symbol(&path, lookup, scope)?;
-                if result.len() != 1 {
-                    if result.is_empty() {
-                        panic!("no results looking up {path:?}:\n {result:#?}")
+                let mut symbols = self.resolve_symbol(&path, lookup, &[], scope)?;
+                if symbols.len() != 1 {
+                    if symbols.is_empty() {
+                        panic!("no results looking up {path:?}")
                     }
-                    panic!("found multiple results for {path:?}:\n {result:#?}")
+                    panic!("found multiple results for {path:?}")
                 }
 
-                Ok(result.pop().unwrap())
+                let symbol = symbols.pop().unwrap();
+
+                /* 
+                    Note, if we have a function here, we don't want to do a functioncall.
+                    We want to return a reference to the function.
+                    If we have a symbol pointing to a value, we'd like to return the value.
+                */
+
+
+                match symbol {
+                    Symbol::LocalVar { addr, ty } => Ok(Instruction::GetLocalVar(addr as usize).expr(ty)),
+                    Symbol::Global(symbol_id) => {
+                        // TODO we can't do that here
+                        // because we DO NOT KNOW the kinds of arguments needed!
+                        Ok(Instruction::FunctionCall {func, args}.expr(ty))
+                    }
+                }
             }
             V::Tuple(expr) => {
                 if expr.values.len() > 1 {
@@ -434,9 +444,6 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
-    // TODO RESOLVE SYMBOL doesn't return an expression.
-    // it returns a reference to a symbol, like a local varibale.
-    ///
     /// Returns a set of candidates for the symbol.
     /// Resolving the candidates requires further knowledge.
     ///
@@ -563,6 +570,32 @@ impl<'a> CompilerContext<'a> {
 
         Ok(candidates)
     }
+}
+
+fn compile_constant_value(literal: &Literal, type_ids: &BuildinTypeId) -> Result<StaticExpression, CompilationError> {
+        let (value, ty) = match literal {
+            Literal::StringLiteral(s) => (
+                    Value::String(s.value.to_string()),
+                    type_ids.string,
+                ),
+            Literal::Bool{ value, .. }  => (
+                Value::Bool(*value),
+                type_ids.bool,
+            ),
+        Literal::Int(int) => {
+            let (i, ty) = util::eval_int(int, &type_ids)?;
+            (Value::Int(i), ty)
+        }
+        Literal::Float(f) => {
+            let f = f.parse::<f64>()?;
+            (
+                Value::Float(f),
+                type_ids.float,
+            )
+        }
+    };
+
+    Ok(Instruction::Const(value).expr(ty as usize))
 }
 
 /// Buildin Functions

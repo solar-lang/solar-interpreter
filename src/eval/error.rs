@@ -4,6 +4,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum CompilationError {
     IntConversion(#[from] std::num::ParseIntError),
+    FloatConversion(#[from] std::num::ParseFloatError),
     FindError(#[from] FindError),
     WrongBuildin {
         found: String,
@@ -23,6 +24,7 @@ impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::IntConversion(e) => e.fmt(f),
+            Self::FloatConversion(e) => e.fmt(f),
             Self::FindError(e) => e.fmt(f),
             Self::WrongBuildin { found } => {
                 write!(f, "only buildin methods are allowed to start with buildin_ or Buildin_.\n Found {found}.")

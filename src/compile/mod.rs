@@ -2,6 +2,8 @@ mod custom;
 use crate::id::{FunctionId, TypeId};
 
 pub use custom::CustomInstructionCode;
+use serde::de::value;
+use solar_parser::ast;
 /// Expression with type-information
 pub struct StaticExpression {
     pub instr: Box<Instruction>,
@@ -17,6 +19,7 @@ pub enum Instruction {
         code: CustomInstructionCode,
         args: Vec<StaticExpression>,
     },
+    Const(crate::value::Value),
     // Void,
     FunctionCall {
         func: FunctionId,

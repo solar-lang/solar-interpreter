@@ -1,27 +1,18 @@
-use std::{
-    fmt::{self, Debug},
-    rc::Rc,
-};
+use std::fmt::{self, Debug};
 
-use crate::id::{SymbolId, TypeId};
+use crate::id::TypeId;
 
-pub type GcString = Rc<String>;
 
-type GenericFn<'a> = Rc<dyn Fn(&[Value<'a>]) -> Value<'a>>;
-
-/// Represents a Dynamically Typed Value
 #[derive(Clone)]
-pub enum Value<'a> {
+pub enum Value {
     Void,
     Bool(bool),
     Int(Int),
     Float(f64),
-    String(GcString),
-    FnBuildin(GenericFn<'a>),
-    Function(SymbolId),
+    String(String),
 }
 
-impl Value<'_> {
+impl Value {
     pub fn typeid(&self) -> TypeId {
         unimplemented!()
     }
@@ -33,13 +24,11 @@ impl Value<'_> {
             Value::Int(_) => "Int",
             Value::Float(_) => "Float",
             Value::String(_) => "String",
-            Value::FnBuildin(_) => "Fn",
-            Value::Function(_) => "Fn",
         }
     }
 }
 
-impl Debug for Value<'_> {
+impl Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ty = self.type_as_str();
 
@@ -47,7 +36,7 @@ impl Debug for Value<'_> {
     }
 }
 
-impl fmt::Display for Value<'_> {
+impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Void => write!(f, "void"),
@@ -88,29 +77,5 @@ impl fmt::Display for Int {
             Uint16(v) => write!(f, "{v}"),
             Uint8(v) => write!(f, "{v}"),
         }
-    }
-}
-
-impl From<String> for Value<'_> {
-    fn from(value: String) -> Self {
-        Value::String(Rc::new(value))
-    }
-}
-
-impl From<()> for Value<'_> {
-    fn from(_: ()) -> Self {
-        Value::Void
-    }
-}
-
-impl From<bool> for Value<'_> {
-    fn from(value: bool) -> Self {
-        Value::Bool(value)
-    }
-}
-
-impl<'a, T: 'static + Fn(&[Value<'a>]) -> Value<'a>> From<T> for Value<'a> {
-    fn from(value: T) -> Self {
-        Value::FnBuildin(Rc::new(value))
     }
 }
