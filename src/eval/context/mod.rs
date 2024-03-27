@@ -396,6 +396,7 @@ impl<'a> CompilerContext<'a> {
                 // may also be ->v<-
                 // where we do not know at this point, what kind of arguments "double" takes.
                 // map [7, 9] double
+                // So, double just needs to be in scope. Preferably just once
 
                 // Actually, I don't think I want to allow Paths here.
                 // just field access.
