@@ -4,7 +4,7 @@ use self::function_store::{FunctionInfo, FunctionStore};
 use super::interpreter::InterpreterContext;
 use super::CompilationError;
 use crate::{
-    compile::{CustomInstructionCode, Instruction, StaticExpression},
+    mir::{CustomInstructionCode, Instruction, StaticExpression},
     id::{FunctionId, IdItem, IdModule, Symbol, SymbolId, TypeId, SSID},
     project::{FileInfo, FindError, GlobalModules, Module, ProjectInfo, SymbolResolver},
     types::{

@@ -1,6 +1,6 @@
 // #![feature(string_leak)]
-pub mod compile;
-mod eval;
+pub mod mir;
+mod compilation;
 pub mod id;
 mod project;
 mod types;
@@ -9,7 +9,7 @@ mod value;
 
 use project::{read_all_projects, read_modules};
 
-use eval::CompilerContext;
+use compilation::CompilerContext;
 
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());

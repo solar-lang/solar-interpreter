@@ -3,7 +3,7 @@ use std::ops::Deref;
 use hotel::HotelMap;
 
 use crate::{
-    compile::StaticExpression,
+    mir::StaticExpression,
     id::{TypeId, SSID},
 };
 
