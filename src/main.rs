@@ -21,6 +21,7 @@ fn main() {
     let f_main = ctx.find_target_main().expect("find main function");
 
     // TODO instead call resolve_symbol(f_main, &[]) -> FunctionID
+    // -> why?
     let function_id = ctx.compile_symbol(f_main, &[]).expect("compile code");
 
     /* TODO
@@ -35,7 +36,7 @@ fn main() {
         E.g. Function(..Args) -> ByteCode
     */
 
-    eprintln!("\n{function_id:?}");
+    eprintln!("\n{function_id:#?}");
 
-    eprintln!("\n{:?}", ctx.types);
+    eprintln!("\n{:#?}", ctx.types);
 }

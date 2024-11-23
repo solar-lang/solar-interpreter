@@ -73,7 +73,7 @@ pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, Bui
                         "Uint" => ids.uint = id,
                         "Float32" => ids.float32 = id,
                         "Float" => ids.float = id,
-                        "String" => ids.float = id,
+                        "String" => ids.string = id,
                         x => panic!("unrecognized buildin: {x}"),
                     }
                 }

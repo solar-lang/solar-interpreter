@@ -620,7 +620,7 @@ fn compile_constant_value(literal: &Literal, type_ids: &BuildinTypeId) -> Result
                 type_ids.bool,
             ),
         Literal::Int(int) => {
-            let (i, ty) = util::eval_int(int, &type_ids)?;
+            let (i, ty) = util::eval_int(int, type_ids)?;
             (Value::Int(i), ty)
         }
         Literal::Float(f) => {

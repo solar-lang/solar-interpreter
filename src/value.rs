@@ -44,10 +44,6 @@ impl fmt::Display for Value {
             Value::Int(i) => write!(f, "{i}"),
             Value::Float(i) => write!(f, "{i}"),
             Value::String(i) => write!(f, "{i}"),
-            Value::FnBuildin(_) => write!(f, "fun()"),
-            Value::Function(_) => {
-                write!(f, "fun()")
-            }
         }
     }
 }
