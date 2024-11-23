@@ -1,5 +1,17 @@
 # Solar Interpreter
 
-Tree Walking Interpreter
+Statically typed Interpreter
 
-used as first step in order to create a compiler
+derived from an tree walking interpreter.
+
+## TODO
+
+### Prio 1
+
+- create a simplified AST Type, that can be derived from the normal AST
+- Instead of having a huge compiler context implementation, maybe implement compilation as AST methods.
+
+### Prio 2
+
+- save code-comments in normal AST, so it can be used for formatting.
+- include a type of block that is "unparsable" for formatting and language server

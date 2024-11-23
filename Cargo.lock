@@ -22,9 +22,9 @@ checksum = "8a9ee70c43aaf417c914396645a0fa852624801b24ebb7ae78fe8272889ac888"
 
 [[package]]
 name = "hotel"
-version = "1.0.4"
+version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0e2cc5ca8fe32c65a4a6e25cb07782815ede6ce09c0e8d36edaba462db1cdbf"
+checksum = "68f94547ca63f2d3f3ed327b9f0ff45c776e8cd06b1e188ee4e8bb3874e6f13d"
 
 [[package]]
 name = "indexmap"

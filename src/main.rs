@@ -1,5 +1,6 @@
 // #![feature(string_leak)]
-mod eval;
+pub mod mir;
+mod compilation;
 pub mod id;
 mod project;
 mod types;
@@ -8,7 +9,7 @@ mod value;
 
 use project::{read_all_projects, read_modules};
 
-use eval::CompilerContext;
+use compilation::CompilerContext;
 
 fn main() {
     let fsroot = std::env::args().nth(1).unwrap_or(".".to_string());
@@ -19,7 +20,9 @@ fn main() {
 
     let f_main = ctx.find_target_main().expect("find main function");
 
-    let result = ctx.eval_symbol(f_main, &[]).expect("evaluate code");
+    // TODO instead call resolve_symbol(f_main, &[]) -> FunctionID
+    // -> why?
+    let function_id = ctx.compile_symbol(f_main, &[]).expect("compile code");
 
     /* TODO
         There's a need now, to resolve types.
@@ -33,7 +36,13 @@ fn main() {
         E.g. Function(..Args) -> ByteCode
     */
 
-    eprintln!("\n{result:?}");
+    eprintln!("\n{function_id:#?}");
 
-    eprintln!("\n{:?}", ctx.types);
+    // eprintln!("\n{:#?}", ctx.types);
+
+    for (k,_i, v) in ctx.functions.read().unwrap().iter(){
+        let k = k.0.0.join(".") + &format!(".{}", k.0.1);
+        eprintln!("{}:\n{:#?}\n", k, v);
+    } 
+
 }

@@ -9,27 +9,29 @@ use crate::{
 use super::Type;
 
 #[derive(Default, Debug)]
-pub struct BuildinTypeID {
-    bool: u8,
+pub struct BuildinTypeId {
+    pub bool: u8,
 
-    int8: u8,
-    int16: u8,
-    int32: u8,
-    int: u8,
+    pub int8: u8,
+    pub int16: u8,
+    pub int32: u8,
+    pub int: u8,
 
-    uint8: u8,
-    uint16: u8,
-    uint32: u8,
-    uint: u8,
+    pub uint8: u8,
+    pub uint16: u8,
+    pub uint32: u8,
+    pub uint: u8,
 
-    float32: u8,
-    float: u8,
+    pub float32: u8,
+    pub float: u8,
+
+    pub string: u8,
 }
 
 // Only the stdlibary is allowed to declare buildin types!
-pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, BuildinTypeID) {
+pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, BuildinTypeId) {
     let mut tys = HotelMap::new();
-    let mut ids = BuildinTypeID::default();
+    let mut ids = BuildinTypeId::default();
 
     // Find std library
     let stdpaths = modules
@@ -51,6 +53,7 @@ pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, Bui
                         Vec::new(),
                     );
                     let ty = Type {
+                        info_name: item.name.value.to_string(),
                         module: module.to_vec(),
                         field_layout: Vec::new(),
                         size_in_bytes: 0,
@@ -70,6 +73,7 @@ pub fn link_buildin_types(modules: &GlobalModules) -> (HotelMap<SSID, Type>, Bui
                         "Uint" => ids.uint = id,
                         "Float32" => ids.float32 = id,
                         "Float" => ids.float = id,
+                        "String" => ids.string = id,
                         x => panic!("unrecognized buildin: {x}"),
                     }
                 }
