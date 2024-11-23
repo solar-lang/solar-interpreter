@@ -15,7 +15,7 @@ use crate::{
     value::Value,
 };
 use hotel::HotelMap;
-use solar_parser::ast::{self, body::BodyItem, expr::{FullExpression, FunctionCall, Literal}};
+use solar_parser::ast::{self, body::BodyItem, expr::{FullExpression, Literal}};
 use std::sync::{Mutex, RwLock};
 
 /// Struct that gets created once globally
@@ -58,6 +58,7 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
+    /// Get a reference to the symbol inside the AST. 
     pub fn get_symbol(&self, (module, file, item): SymbolId) -> (&Module, &FileInfo, &BodyItem) {
         let module = self
             .module_info
@@ -125,7 +126,7 @@ impl<'a> CompilerContext<'a> {
 
         let lookup = Lookup {
             module,
-            idmodule: symbol_id.0,
+            idmodule: symbol_id.0.clone(),
             imports: &fileinfo.imports,
         };
 
@@ -167,6 +168,9 @@ impl<'a> CompilerContext<'a> {
         lookup: Lookup,
         ssid: &SSID,
     ) -> Result<(FunctionId, TypeId), CompilationError> {
+        // NOTE: the args to this function are redundant. loopkup and ssid
+        // both contain the same IdModule information.
+
         // First, check if function is already compiled
         {
             let fnstore = self
@@ -176,9 +180,11 @@ impl<'a> CompilerContext<'a> {
 
             if let Some((fnid, info)) = fnstore.get_by_key(&ssid) {
                 match info {
-                    FunctionInfo::Complete { args, body } => {
+                    FunctionInfo::Complete { args: _, body } => {
                         return Ok((fnid, body.ty));
                     }
+                    // this can happen, when we recursively call a function in solar code.
+                    // e.g. fibonacci 
                     FunctionInfo::Partial => {
                         panic!("only found partial function information during compilation. Find out later what to do here");
                     }
@@ -202,8 +208,8 @@ impl<'a> CompilerContext<'a> {
         let mut scope = Scope::new();
 
         let mut types = Vec::new();
-        let args = ssid.1;
-        for ((ident, _ty), static_type) in ast.args.iter().zip(args) {
+        let arg_types = &ssid.1;
+        for ((ident, _ty), static_type) in ast.args.iter().zip(arg_types) {
             // TODO what to do with the arguments type here?
             // This might be the right place, for
             //     - autocasting integers.
@@ -212,9 +218,9 @@ impl<'a> CompilerContext<'a> {
             // if _ty != static_type { return Error }
 
             // we can ignore the index, it's just 1, 2, 3, ... anyway
-            let _index = scope.push(ident.value, static_type);
+            let _index = scope.push(ident.value, *static_type);
 
-            types.push(static_type);
+            types.push(*static_type);
         }
 
         // TODO there's a problem here.
