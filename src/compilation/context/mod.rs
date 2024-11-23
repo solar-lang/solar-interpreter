@@ -157,7 +157,7 @@ impl<'a> CompilerContext<'a> {
         }
     }
 
-    /// Compile a function.
+    /// Compile an AST function.
     /// The instructions for the function will get stored inside the context.
     /// All this returns is the lookup symbol/index (and the return type) of the function.
     /// If it is already compiled,
@@ -252,6 +252,15 @@ impl<'a> CompilerContext<'a> {
         match expr {
             FullExpression::Let(expr) => {
                 let mut let_list = Vec::new();
+                // Note, the problem her is:
+                /*
+                    let x = 5,
+                        y = x + 1,
+                        z = y^2 in
+                        evaluate z 
+                 */
+                // This will be much simplet with a simplified AST type
+
                 // Insert all let bindings into scope
                 // and evaluate their expressions
                 for (ident, value) in &expr.definitions {
@@ -268,12 +277,13 @@ impl<'a> CompilerContext<'a> {
 
                 let (var_index, var_value) = let_list
                     .pop()
-                    .expect("let binding th have at least one definition");
+                    .expect("let binding to have at least one definition");
 
                 // return type of the let binding
                 let ty = body_expression.ty;
 
                 // The tree we're building (in reverse)
+                // This is the final expression in the "let-chain-expression"
                 let mut let_tree = Instruction::NewLocalVar {
                     var_index,
                     var_value,
@@ -281,12 +291,27 @@ impl<'a> CompilerContext<'a> {
                 };
 
                 for (var_index, var_value) in let_list.into_iter().rev() {
+                    let body = StaticExpression {
+                        instr: Box::new(let_tree),
+                        ty,
+                    };
                     let_tree = Instruction::NewLocalVar {
                         var_index,
                         var_value,
-                        body: body_expression,
+                        body,
                     }
                 }
+
+                // this should have transformed
+                /*
+                 let x = 7,
+                     y = 8 in x+y
+                
+                to
+
+                let x = 7 in 
+                let y = 8 in x+y
+                 */
 
                 // Now we remove the let bindings from the scope again
                 for _ in &expr.definitions {
@@ -435,7 +460,12 @@ impl<'a> CompilerContext<'a> {
                     Symbol::Global(symbol_id) => {
                         // TODO we can't do that here
                         // because we DO NOT KNOW the kinds of arguments needed!
-                        Ok(Instruction::FunctionCall {func, args}.expr(ty))
+
+                        // TODO find out, what is happening here.
+
+                        panic!("trouble compiling symbol {symbol_id:?}");
+
+                        // Ok(Instruction::FunctionCall {func, args}.expr(ty))
                     }
                 }
             }
