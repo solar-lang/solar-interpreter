@@ -7,6 +7,7 @@ use crate::{
     id::{TypeId, SSID},
 };
 
+#[derive(Debug)]
 pub enum FunctionInfo {
     /// Used to reserve functions.
     /// Needed, because in cases like recursion we need to know

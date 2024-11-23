@@ -3,12 +3,15 @@ use crate::id::{FunctionId, TypeId};
 
 pub use custom::CustomInstructionCode;
 /// Expression with type-information
+#[derive(Debug)]
 pub struct StaticExpression {
     pub instr: Box<Instruction>,
     // NOTE maybe make this into an array of typeIDs later
     pub ty: TypeId,
 }
 
+
+#[derive(Debug)]
 pub enum Instruction {
     /// Interface for compiler buildins etc.
     /// May be removed in the future.

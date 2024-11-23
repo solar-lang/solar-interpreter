@@ -34,6 +34,7 @@ pub struct CompilerContext<'a> {
 
     pub functions: RwLock<FunctionStore>,
 
+    // TODO remove
     /// Contains runtime configurations, like stdin and stdout
     pub interpreter_ctx: Mutex<InterpreterContext>,
 }

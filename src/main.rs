@@ -38,5 +38,11 @@ fn main() {
 
     eprintln!("\n{function_id:#?}");
 
-    eprintln!("\n{:#?}", ctx.types);
+    // eprintln!("\n{:#?}", ctx.types);
+
+    for (k,_i, v) in ctx.functions.read().unwrap().iter(){
+        let k = k.0.0.join(".") + &format!(".{}", k.0.1);
+        eprintln!("{}:\n{:#?}\n", k, v);
+    } 
+
 }
