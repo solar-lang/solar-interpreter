@@ -1,8 +1,6 @@
-# Solar Interpreter
+# Solar Compiler
 
-Statically typed Interpreter
-
-derived from an tree walking interpreter.
+Performs Statical Type checking on raw Solar AST and emits fully linked bytecode
 
 ## TODO
 
